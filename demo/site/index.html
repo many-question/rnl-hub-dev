@@ -1,0 +1,795 @@
+<meta charset="utf-8">
+<title>rnl-hub Demo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a datasheet-like reading column (max 1180px); addresses and numbers in mono; one accent, semantic colors for verification state. */
+:root{
+  --bg:#f2f5f8; --surface:#ffffff; --sunken:#e8edf2; --ink:#17212b; --muted:#566575; --faint:#8593a2; --line:#d2dae3;
+  --accent:#0f5fb8; --accent-soft:#e2edfa;
+  --ok:#187a47; --ok-soft:#dff3e7; --warn:#8f6200; --warn-soft:#faefcf; --bad:#b8332a; --bad-soft:#fbe3e0; --ext:#7446b0; --ext-soft:#efe6fa;
+  --t-ideal:#6f7c8a; --t-va:#0b8585; --t-rtl:#7446b0; --t-transistor:#0f5fb8; --t-composition:#b85c0a; --t-mixed:#a0367a;
+  --sans:"IBM Plex Sans","PingFang SC","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;
+  --mono:"IBM Plex Mono","Cascadia Mono",Consolas,"PingFang SC","Microsoft YaHei",monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0f151c; --surface:#18212b; --sunken:#0b1016; --ink:#e3e9ef; --muted:#9aa8b6; --faint:#6e7c8b; --line:#2a3643;
+  --accent:#6fadf7; --accent-soft:#16304e;
+  --ok:#4cc38a; --ok-soft:#12301f; --warn:#e0b040; --warn-soft:#382d0e; --bad:#f2766c; --bad-soft:#3b1916; --ext:#b497f0; --ext-soft:#281f3d;
+  --t-ideal:#9aa8b6; --t-va:#3fc1c1; --t-rtl:#b497f0; --t-transistor:#6fadf7; --t-composition:#f0a050; --t-mixed:#e07ab8;
+  color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#0f151c; --surface:#18212b; --sunken:#0b1016; --ink:#e3e9ef; --muted:#9aa8b6; --faint:#6e7c8b; --line:#2a3643;
+  --accent:#6fadf7; --accent-soft:#16304e;
+  --ok:#4cc38a; --ok-soft:#12301f; --warn:#e0b040; --warn-soft:#382d0e; --bad:#f2766c; --bad-soft:#3b1916; --ext:#b497f0; --ext-soft:#281f3d;
+  --t-ideal:#9aa8b6; --t-va:#3fc1c1; --t-rtl:#b497f0; --t-transistor:#6fadf7; --t-composition:#f0a050; --t-mixed:#e07ab8;
+  color-scheme:dark }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.55}
+a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--mono);font-size:.93em}
+.muted{color:var(--muted)} .faint{color:var(--faint)} .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+/* top bar */
+.top{background:var(--surface);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;gap:8px 20px;flex-wrap:wrap;padding-block:10px}
+.brand{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-weight:600;font-size:16px;color:var(--ink)}
+.brand:hover{text-decoration:none}
+.brand svg{display:block}
+.nav{display:flex;gap:4px;flex-wrap:wrap}
+.nav a{padding:5px 10px;border-radius:6px;color:var(--muted);font-weight:500}
+.nav a.on{background:var(--accent-soft);color:var(--accent)} .nav a:hover{text-decoration:none;color:var(--ink)}
+.demo{margin-left:auto;font-size:12px;color:var(--warn);background:var(--warn-soft);padding:3px 9px;border-radius:99px}
+main.wrap{padding-block:22px 40px;display:flex;flex-direction:column;gap:22px}
+#theme-btn{padding:4px 10px;font-size:13px;color:var(--muted)}
+#theme-btn svg{display:block}
+footer{border-top:1px solid var(--line);color:var(--faint);font-size:12.5px}
+footer .wrap{padding-block:14px;display:flex;gap:6px 18px;flex-wrap:wrap}
+/* type */
+h1{font-size:24px;line-height:1.25;margin:0;font-weight:700;text-wrap:balance}
+h2{font-size:16px;margin:0;font-weight:600}
+h3{font-size:13px;margin:0;font-weight:600;color:var(--muted);letter-spacing:.02em}
+p{margin:0;max-width:72ch}
+.lede{color:var(--muted);font-size:15px}
+.crumb{font-size:13px;color:var(--faint);display:flex;gap:6px;flex-wrap:wrap}
+/* blocks */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.panel>header{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding:11px 16px;border-bottom:1px solid var(--line)}
+.panel>header .sub{color:var(--faint);font-size:12.5px}
+.panel>.body{padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.scroll{overflow-x:auto}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:22px;align-items:start}
+.cols>*{min-width:0;display:flex;flex-direction:column;gap:22px}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:22px;align-items:start}
+.two>*{min-width:0}
+@media (max-width:900px){.cols{grid-template-columns:minmax(0,1fr)}}
+.stack{display:flex;flex-direction:column;gap:22px}
+.row{display:flex;gap:8px 14px;flex-wrap:wrap;align-items:center}
+/* tables */
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child>td{border-bottom:0}
+th{font-size:12px;font-weight:600;color:var(--muted);background:var(--sunken);white-space:nowrap}
+td.r,th.r{text-align:right} td.nw,th.nw{white-space:nowrap}
+tbody tr:hover>td{background:color-mix(in srgb,var(--accent-soft) 45%,transparent)}
+/* chips */
+.tb,.pill,.st{display:inline-flex;align-items:center;gap:5px;border-radius:5px;padding:1px 7px;font-size:12px;line-height:1.6;white-space:nowrap}
+.tb{border:1px solid currentColor;font-weight:500}
+.t-ideal{color:var(--t-ideal)} .t-va{color:var(--t-va)} .t-rtl{color:var(--t-rtl)} .t-transistor{color:var(--t-transistor)} .t-composition{color:var(--t-composition)} .t-mixed{color:var(--t-mixed)}
+.pill{background:var(--sunken);color:var(--muted)}
+.st{font-weight:500} .st::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.st.verified{color:var(--ok);background:var(--ok-soft)} .st.self{color:var(--warn);background:var(--warn-soft)}
+.st.disputed{color:var(--bad);background:var(--bad-soft)} .st.none{color:var(--faint);background:var(--sunken)}
+.st.ext{color:var(--ext);background:var(--ext-soft)} .st.info{color:var(--accent);background:var(--accent-soft)}
+.kv{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:6px 16px;font-size:13.5px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;min-width:0;overflow-wrap:anywhere}
+pre{margin:0;font-family:var(--mono);font-size:12.5px;line-height:1.6;background:var(--sunken);border-radius:6px;padding:10px 12px;overflow-x:auto}
+code{font-family:var(--mono);font-size:.93em;background:var(--sunken);padding:1px 5px;border-radius:4px}
+/* tabs */
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tabs a{padding:8px 14px;color:var(--muted);font-weight:500;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs a.on{color:var(--accent);border-bottom-color:var(--accent)} .tabs a:hover{text-decoration:none;color:var(--ink)}
+.tabs .n{font-family:var(--mono);font-size:12px;color:var(--faint);margin-left:4px}
+/* home */
+.stats{display:flex;gap:10px 28px;flex-wrap:wrap}
+.stats div{display:flex;flex-direction:column}
+.stats b{font-family:var(--mono);font-size:22px;font-weight:600;line-height:1.2}
+.stats span{font-size:12.5px;color:var(--muted)}
+.filters{display:flex;gap:8px 10px;flex-wrap:wrap;align-items:center}
+input[type=search],select{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 10px}
+input[type=search]{flex:1 1 220px;min-width:0}
+label.chk{display:inline-flex;gap:6px;align-items:center;color:var(--muted);font-size:13px}
+.ipname{font-family:var(--mono);font-weight:600;font-size:14.5px}
+.feed{display:flex;flex-direction:column}
+.feed>div{padding:9px 16px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:2px;font-size:13px}
+.feed>div:last-child{border-bottom:0}
+.feed .when{font-size:12px;color:var(--faint)}
+/* detail head */
+.head{display:flex;gap:18px 28px;flex-wrap:wrap;align-items:flex-start;justify-content:space-between}
+.head>div{min-width:0;display:flex;flex-direction:column;gap:8px;flex:1 1 420px}
+.addr{font-family:var(--mono);font-size:21px;font-weight:600;overflow-wrap:anywhere}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:6px;padding:6px 12px;font:inherit;font-weight:500;cursor:pointer}
+.btn:hover{border-color:var(--accent);color:var(--accent);text-decoration:none}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.note{background:var(--sunken);border-radius:6px;padding:9px 12px;color:var(--muted);font-size:13px}
+.alert{border:1px solid var(--bad);background:var(--bad-soft);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.alert h2{color:var(--bad)}
+.alert ul,.plain ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px;max-width:78ch}
+svg text{font-family:var(--mono)}
+.sym{flex:0 0 auto;align-self:center}
+.tree{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.tree ul{list-style:none;margin:6px 0 0 9px;padding:0 0 0 16px;border-left:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
+.tree li>div{display:flex;gap:6px 10px;flex-wrap:wrap;align-items:center}
+.viewer{border:1px dashed var(--line);border-radius:8px;background:var(--sunken);padding:22px 16px;display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--muted);text-align:center}
+.dsval{display:inline-flex;gap:6px;align-items:center;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:0 0 auto}
+.dot.verified{background:var(--ok)} .dot.self{background:var(--warn)} .dot.disputed{background:var(--bad)}
+.legend{display:flex;gap:6px 16px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);align-items:center}
+.legend span{display:inline-flex;gap:6px;align-items:center}
+#toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:8px;font-size:13px;max-width:calc(100% - 32px);z-index:20}
+</style>
+
+<div class="top"><div class="wrap">
+  <a class="brand" href="#" aria-label="rnl-hub 首页">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="5" y="4" width="12" height="14" rx="1.5" fill="none" stroke="var(--accent)" stroke-width="1.8"/><path d="M1 8h4M1 14h4M17 11h4" stroke="var(--accent)" stroke-width="1.8" fill="none"/></svg>
+    rnl-hub</a>
+  <nav class="nav" id="nav"></nav>
+  <span class="demo">演示页面 · 数据均为虚构</span>
+  <button class="btn" id="theme-btn" type="button"></button>
+</div></div>
+<main class="wrap" id="app"></main>
+<div id="toast" role="status" hidden></div>
+<footer><div class="wrap">
+  <span>网站由 CI 构建：2026-11-10 09:30 UTC · <span class="mono">main@a41c9e2</span></span>
+  <span>每 30 分钟检查一次新合并</span>
+  <span>实现与 tb：CERN-OHL-P-2.0 · 其余内容：MIT</span>
+</div></footer>
+
+<script>
+"use strict";
+/* ---------- helpers ---------- */
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const enc=p=>String(p).replace(/_/g,'-u-');
+const L=(...parts)=>'#'+parts.map(enc).join('--');
+const hstr=s=>{let h=2166136261;for(const c of s)h=Math.imul(h^c.charCodeAt(0),16777619);return h>>>0};
+const sha=(s,n=12)=>{let o='',h=hstr(s);while(o.length<n){h=Math.imul(h^(h>>>13),0x5bd1e995)>>>0;o+=h.toString(16).padStart(8,'0')}return o.slice(0,n)};
+const rng=seed=>{let a=seed>>>0;return()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}};
+const byDate=(a,b)=>a.date<b.date?-1:a.date>b.date?1:0;
+const uniq=a=>[...new Set(a)];
+const fmt=v=>Math.abs(v)>=100?v.toFixed(0):Math.abs(v)>=10?v.toFixed(1):v.toFixed(2);
+
+/* ---------- demo data (all fictional) ---------- */
+const P=(name,dir,kind,w)=>({name,dir,kind,w});
+const IPS=[
+ {id:'strongarm-comp',title:'StrongARM 动态比较器',account:'alice-ic',author:'Alice Zhang',date:'2026-10-02',
+  desc:'clk 上升沿比较 inp 与 inn，输出互补的满摆幅判决；clk 为低时两个输出都复位到 vdd。',
+  pins:[P('inp','in','analog'),P('inn','in','analog'),P('clk','in','digital'),P('outp','out','digital'),P('outn','out','digital'),P('vdd','','supply'),P('vss','','ground')]},
+ {id:'cdac-10b',title:'10 位二进制电容 DAC',account:'alice-ic',author:'Alice Zhang',date:'2026-10-04',
+  desc:'sample 为高时在顶板采样 vin；之后按 d 把各位电容的底板接到 vrefp 或 vrefn，顶板输出残差电压。',
+  pins:[P('vin','in','analog'),P('vrefp','in','analog'),P('vrefn','in','analog'),P('sample','in','digital'),P('d','in','digital',10),P('top','out','analog'),P('vss','','ground')]},
+ {id:'sar-logic-10b',title:'10 位 SAR 控制逻辑',account:'alice-ic',author:'Alice Zhang',date:'2026-10-04',
+  desc:'start 后每个时钟周期按比较器输出 cmp 决定一位，从最高位到最低位；全部完成后 done 拉高一个周期。',
+  pins:[P('clk','in','digital'),P('rst_n','in','digital'),P('start','in','digital'),P('cmp','in','digital'),P('d','out','digital',10),P('sample','out','digital'),P('done','out','digital'),P('vdd','','supply'),P('vss','','ground')]},
+ {id:'bootstrap-sw',title:'自举采样开关',account:'bob-analog',author:'r08(fable51)',date:'2026-10-07',
+  desc:'clk 为高时把 vin 接到 vout，栅源电压保持在约一个 vdd，导通电阻基本不随输入变化。',
+  pins:[P('vin','in','analog'),P('clk','in','digital'),P('vout','out','analog'),P('vdd','','supply'),P('vss','','ground')]},
+ {id:'sar-adc-10b',title:'10 位单端 SAR ADC',account:'alice-ic',author:'Alice Zhang',date:'2026-10-10',
+  desc:'start 后采样 vin，用 10 个时钟周期逐位逼近，在 done 拉高时给出 dout。参考电压由 vrefp、vrefn 提供。',
+  pins:[P('vin','in','analog'),P('vrefp','in','analog'),P('vrefn','in','analog'),P('clk','in','digital'),P('start','in','digital'),P('dout','out','digital',10),P('done','out','digital'),P('avdd','','supply'),P('dvdd','','supply'),P('vss','','ground')]},
+ {id:'ota-5t',title:'五管 OTA',account:'dkim',author:'',date:'2026-10-12',
+  desc:'单级差分输入、单端输出的跨导放大器，尾电流由 ibias 镜像得到。',
+  pins:[P('inp','in','analog'),P('inn','in','analog'),P('ibias','in','analog'),P('out','out','analog'),P('vdd','','supply'),P('vss','','ground')]},
+ {id:'bandgap-1v2',title:'1.2 V 带隙基准',account:'chen-lab',author:'Chen Wei',date:'2026-10-20',
+  desc:'en 为高时在 vref 输出约 1.2 V 的基准电压，随温度和电源的变化很小；en 为低时关断。',
+  pins:[P('en','in','digital'),P('vref','out','analog'),P('vdd','','supply'),P('vss','','ground')]},
+];
+const I=[];
+const imp=(ip,g,v,type,proc,account,author,date,based,sum,x={})=>I.push({ip,g,v,type,proc,account,author,date,based,sum,origin:null,uses:null,...x});
+// strongarm-comp
+imp('strongarm-comp','ideal',1,'ideal','','alice-ic','Alice Zhang','2026-10-02',[],'理想判决；失调和输入噪声是实例参数');
+imp('strongarm-comp','va-noise',1,'va','','alice-ic','Alice Zhang','2026-10-05',['strongarm-comp@ideal/v1'],'VA 模型：失调、热噪声，判决延时随输入差按对数变化');
+imp('strongarm-comp','va-noise',2,'va','','alice-ic','Alice Zhang','2026-10-20',[],'参数按 sky130-a/v2 的验证数据重新拟合');
+imp('strongarm-comp','sky130-a',1,'transistor','sky130','bob-analog','r08(fable51)','2026-10-08',[],'经典 StrongARM 锁存器，NMOS 输入对');
+imp('strongarm-comp','sky130-a',2,'transistor','sky130','bob-analog','r08(fable51)','2026-10-15',[],'输入对加宽一倍，失调下降');
+imp('strongarm-comp','sky130-a',3,'transistor','sky130','bob-analog','r08(fable51)','2026-10-28',[],'复位管改为 PMOS 对，减小回踢');
+imp('strongarm-comp','sky130-lowoffset',1,'transistor','sky130','chen-lab','Chen Wei','2026-10-22',['strongarm-comp@sky130-a/v2'],'加入一级预放大，换更低的失调');
+imp('strongarm-comp','sky130-lowoffset',2,'transistor','sky130','chen-lab','Chen Wei','2026-11-03',[],'预放大的负载改为二极管接法，速度回升');
+imp('strongarm-comp','gf180-port',1,'transistor','gf180mcu','dkim','opus-designer','2026-11-01',['strongarm-comp@sky130-a/v3'],'移植到 gf180mcu，3.3 V 器件');
+imp('strongarm-comp','ext-openlab',1,'transistor','sky130','eda-fox','','2026-10-30',[],'双尾电流结构',{origin:{mode:'included',repo:'openlab-ic/analog-blocks',sha:'7c1e9b4',path:'comparators/dtail/',license:'CERN-OHL-P-2.0',authors:'openlab-ic 的贡献者',patents:'unknown'}});
+imp('strongarm-comp','ext-uni',1,'transistor','sky130','eda-fox','','2026-11-02',[],'带失调校准电容阵列',{origin:{mode:'reference',repo:'uni-msc/comparators',sha:'e02f5aa',path:'sa_cal/',license:'Apache-2.0',authors:'uni-msc 课题组',patents:'none'}});
+imp('strongarm-comp','ext-startup',1,'transistor','gf180mcu','dkim','','2026-11-05',[],'尾电流分时开关，降低功耗',{origin:{mode:'reference',repo:'example-semi/open-cells',sha:'19ab3d0',path:'cmp_lp/',license:'MIT',authors:'Example Semi（虚构）',patents:[{id:'示例专利申请 EX-2025-001',holder:'Example Semi（虚构）',note:'尾电流开关的时序'}]}});
+imp('strongarm-comp','sky130-fast',1,'transistor','sky130','newbie-ic','','2026-11-06',[],'速度优化版本',{suspect:{like:'strongarm-comp@sky130-a/v3',sim:96}});
+// cdac
+imp('cdac-10b','ideal',1,'ideal','','alice-ic','Alice Zhang','2026-10-04',[],'理想电容阵列，无失配');
+imp('cdac-10b','sky130-mom',1,'transistor','sky130','bob-analog','r08(fable51)','2026-10-14',[],'MOM 单位电容 2 fF，二进制权重');
+imp('cdac-10b','sky130-mom',2,'transistor','sky130','bob-analog','r08(fable51)','2026-10-26',[],'高 5 位改为温度计码，改善 DNL');
+// sar-logic
+imp('sar-logic-10b','rtl-basic',1,'rtl','','alice-ic','Alice Zhang','2026-10-04',[],'同步 SAR 状态机（Verilog）');
+imp('sar-logic-10b','rtl-basic',2,'rtl','','alice-ic','Alice Zhang','2026-10-19',[],'修正 done 提前一个周期的问题');
+imp('sar-logic-10b','rtl-async',1,'rtl','','chen-lab','Chen Wei','2026-11-02',['sar-logic-10b@rtl-basic/v2'],'异步时序：比较完成后立即进入下一位');
+// bootstrap
+imp('bootstrap-sw','ideal',1,'ideal','','bob-analog','r08(fable51)','2026-10-07',[],'理想开关，固定导通电阻');
+imp('bootstrap-sw','sky130-nmos',1,'transistor','sky130','bob-analog','r08(fable51)','2026-10-16',[],'经典自举结构，自举电容 400 fF');
+// sar-adc
+imp('sar-adc-10b','alice-sar',1,'composition','','alice-ic','Alice Zhang','2026-10-21',[],'全部用模型搭起来，先确认结构和时序',{uses:{
+  sw:{ref:'bootstrap-sw@ideal/v1'},dac:{ref:'cdac-10b@ideal/v1'},
+  comp:{ref:'strongarm-comp@va-noise/v2',req:{'tb_offset.offset_sigma':{max:3.0},'tb_noise.noise_rms':{max:330}}},
+  logic:{ref:'sar-logic-10b@rtl-basic/v2'}}});
+imp('sar-adc-10b','alice-sar',2,'composition','sky130','alice-ic','Alice Zhang','2026-10-30',[],'模拟部分换成 sky130 晶体管级实现',{uses:{
+  sw:{ref:'bootstrap-sw@sky130-nmos/v1',req:{'tb_thd.thd':{max:-70}}},
+  dac:{ref:'cdac-10b@sky130-mom/v2',req:{'tb_lin.inl':{max:0.5},'tb_lin.dnl':{max:0.5}}},
+  comp:{ref:'strongarm-comp@sky130-a/v3',req:{'tb_offset.offset_sigma':{max:3.0},'tb_noise.noise_rms':{max:330}}},
+  logic:{ref:'sar-logic-10b@rtl-basic/v2'}}});
+imp('sar-adc-10b','chen-sar',1,'composition','sky130','chen-lab','Chen Wei','2026-11-05',['sar-adc-10b@alice-sar/v2'],'比较器换成低失调版本，逻辑换成异步',{uses:{
+  sw:{ref:'bootstrap-sw@sky130-nmos/v1',req:{'tb_thd.thd':{max:-70}}},
+  dac:{ref:'cdac-10b@sky130-mom/v2',req:{'tb_lin.inl':{max:0.5}}},
+  comp:{ref:'strongarm-comp@sky130-lowoffset/v2',req:{'tb_offset.offset_sigma':{max:1.5},'tb_speed.delay_1mv':{max:90}}},
+  logic:{ref:'sar-logic-10b@rtl-async/v1'}}});
+// ota
+imp('ota-5t','va',1,'va','','dkim','','2026-10-12',[],'单极点模型：直流增益、GBW、输出摆幅限幅');
+imp('ota-5t','sky130-a',1,'transistor','sky130','dkim','','2026-10-13',[],'NMOS 输入，尾电流 20 µA');
+imp('ota-5t','gf180-a',1,'transistor','gf180mcu','eda-fox','hand-tuned','2026-10-27',['ota-5t@sky130-a/v1'],'移植到 gf180mcu');
+imp('ota-5t','ext-old',1,'transistor','sky130','eda-fox','','2026-10-29',[],'PMOS 输入版本',{origin:{mode:'reference',repo:'gone-user/analog-misc',sha:'5d0c7e1',path:'ota5/',license:'BSD-3-Clause',authors:'gone-user',patents:'unknown',unavailable:true}});
+// bandgap
+imp('bandgap-1v2','sky130-bjt',1,'transistor','sky130','chen-lab','Chen Wei','2026-10-20',[],'PNP 一阶补偿，带启动电路');
+imp('bandgap-1v2','ext-openlab',1,'transistor','sky130','eda-fox','','2026-10-31',[],'带曲率补偿',{origin:{mode:'included',repo:'openlab-ic/analog-blocks',sha:'7c1e9b4',path:'refs/bgr_cc/',license:'CERN-OHL-P-2.0',authors:'openlab-ic 的贡献者',patents:'unknown'}});
+
+const M=(id,unit,better,tol,desc)=>({id,unit,better,tol,desc});
+const C3={tt_nom:{corner:'tt',temp:27,supply:1.0},ss_low_125:{corner:'ss',temp:125,supply:0.9},ff_high_m40:{corner:'ff',temp:-40,supply:1.1}};
+const T=[];
+const tbd=(ip,g,v,account,author,date,sim,run,metrics,cases,note)=>T.push({ip,g,v,account,author,date,sim,run,metrics,cases,note});
+tbd('strongarm-comp','tb_offset',1,'alice-ic','Alice Zhang','2026-10-03','spectre','spectre tb.scs +aps -format psfascii -raw out',
+ [M('offset_sigma','mV','lower',{abs:0.15},'输入失调的标准差：蒙特卡洛 200 次，每次用二分法找翻转点'),M('offset_mean','mV','none',{abs:0.2},'输入失调的平均值')],{tt_nom:C3.tt_nom},'第一版');
+tbd('strongarm-comp','tb_offset',2,'alice-ic','Alice Zhang','2026-10-18','spectre','spectre tb.scs +aps -format psfascii -raw out',
+ [M('offset_sigma','mV','lower',{abs:0.15},'输入失调的标准差：蒙特卡洛 1000 次，每次用二分法找翻转点'),M('offset_mean','mV','none',{abs:0.2},'输入失调的平均值')],{tt_nom:C3.tt_nom},'蒙特卡洛从 200 次加到 1000 次，指标含义不变');
+tbd('strongarm-comp','tb_noise',1,'bob-analog','r08(fable51)','2026-10-09','spectre','spectre tb.scs +aps -format psfascii -raw out',
+ [M('noise_rms','µV','lower',{rel:0.05},'等效输入噪声的均方根值：瞬态噪声仿真，扫输入差，按判决概率拟合')],{tt_nom:C3.tt_nom},'');
+tbd('strongarm-comp','tb_speed',1,'chen-lab','Chen Wei','2026-10-23','spectre','spectre tb.scs +aps -format psfascii -raw out',
+ [M('delay_1mv','ps','lower',{rel:0.03},'输入差 1 mV 时，clk 上升沿到输出过半电源的延时'),M('energy','fJ','lower',{rel:0.03},'每次比较从电源取的能量')],{tt_nom:C3.tt_nom,ss_low_125:C3.ss_low_125},'');
+tbd('cdac-10b','tb_lin',1,'alice-ic','Alice Zhang','2026-10-06','spectre','spectre tb.scs -format psfascii -raw out',
+ [M('inl','LSB','lower',{abs:0.05},'端点拟合的积分非线性，取最大绝对值'),M('dnl','LSB','lower',{abs:0.05},'微分非线性，取最大绝对值')],{tt_nom:C3.tt_nom},'');
+tbd('bootstrap-sw','tb_thd',1,'bob-analog','r08(fable51)','2026-10-08','spectre','spectre tb.scs +aps -format psfascii -raw out',
+ [M('thd','dB','lower',{abs:0.5},'1 MHz 满幅正弦采样后的总谐波失真，算到 9 次谐波')],{tt_nom:C3.tt_nom},'');
+tbd('sar-logic-10b','tb_func',1,'alice-ic','Alice Zhang','2026-10-05','iverilog','iverilog -o out/tb tb.v && vvp out/tb',
+ [M('code_errors','个','lower',{abs:0},'1024 个输入码全部扫一遍，输出码出错的个数')],{func:{corner:'—',temp:'—',supply:'—'}},'');
+tbd('sar-adc-10b','tb_dynamic',1,'alice-ic','Alice Zhang','2026-10-11','spectre','spectre tb.scs +aps -format psfascii -raw out',
+ [M('sndr','dB','higher',{abs:0.3},'相干采样 1024 点，输入接近满幅，奈奎斯特带宽内的信噪失真比'),M('sfdr','dB','higher',{abs:0.5},'无杂散动态范围'),M('power','µW','lower',{rel:0.02},'1 MS/s 下 avdd 与 dvdd 的平均功耗之和')],{tt_nom:C3.tt_nom},'');
+tbd('sar-adc-10b','tb_static',1,'chen-lab','Chen Wei','2026-11-04','spectre','spectre tb.scs +aps -format psfascii -raw out',
+ [M('inl','LSB','lower',{abs:0.05},'码密度法的积分非线性，取最大绝对值'),M('dnl','LSB','lower',{abs:0.05},'微分非线性，取最大绝对值')],{tt_nom:C3.tt_nom},'');
+tbd('ota-5t','tb_ac',1,'dkim','','2026-10-12','ngspice','ngspice -b tb.cir -r out/tb.raw',
+ [M('gain_dc','dB','higher',{abs:0.3},'负载 1 pF 时的直流增益'),M('gbw','MHz','higher',{rel:0.03},'单位增益带宽'),M('pm','°','higher',{abs:1},'相位裕度')],{tt_nom:C3.tt_nom},'');
+tbd('bandgap-1v2','tb_tc',1,'chen-lab','Chen Wei','2026-10-20','ngspice','ngspice -b tb.cir -r out/tb.raw',
+ [M('vref','V','none',{abs:0.002},'27 °C 时的输出电压'),M('tc','ppm/°C','lower',{rel:0.05},'-40 到 125 °C 的温度系数（盒子法）')],{tt_nom:C3.tt_nom},'');
+
+const ENV={
+ sp23:{sim:'spectre',ver:'23.1.0.538',opt:'+aps, reltol=1e-4',os:'RHEL 8.6',cpu:'Xeon Gold 6338，16 线程'},
+ sp21:{sim:'spectre',ver:'21.1.0.389',opt:'+aps, reltol=1e-4',os:'CentOS 7.9',cpu:'EPYC 7543，8 线程'},
+ ng43:{sim:'ngspice',ver:'43',opt:'reltol=1e-4, method=gear',os:'Ubuntu 24.04',cpu:'Ryzen 9 7950X，16 线程'},
+ ng42:{sim:'ngspice',ver:'42',opt:'reltol=1e-4',os:'Debian 12',cpu:'Core i7-13700，8 线程'},
+ iv12:{sim:'iverilog',ver:'12.0',opt:'-g2012',os:'Ubuntu 24.04',cpu:'Ryzen 9 7950X'},
+};
+const R=[];
+const rec=(ip,id,account,author,dut,tbs,env,pdk,cases,x={})=>R.push({ip,id,account,author,dut:ip+'@'+dut,tbs,env,pdk,cases,
+  date:id.slice(0,4)+'-'+id.slice(4,6)+'-'+id.slice(6,8),time:id.slice(9,11)+':'+id.slice(11,13),...x});
+const SK='open_pdks 1.0.470', SK2='open_pdks 1.0.482', GF='open_pdks 1.0.470';
+// strongarm-comp
+rec('strongarm-comp','20261015T1120Z-offset','bob-analog','r08(fable51)','sky130-a/v2',['tb_offset/v1'],'sp23',SK,{tt_nom:{'tb_offset.offset_sigma':3.42,'tb_offset.offset_mean':-0.12}},{ev:['hist',3.42,-0.12,200]});
+rec('strongarm-comp','20261028T1410Z-offset-mc','bob-analog','r08(fable51)','sky130-a/v3',['tb_offset/v2'],'sp23',SK,{tt_nom:{'tb_offset.offset_sigma':2.31,'tb_offset.offset_mean':0.08}},{ev:['hist',2.31,0.08,1000]});
+rec('strongarm-comp','20261101T0902Z-offset-rerun','chen-lab','Chen Wei','sky130-a/v3',['tb_offset/v2'],'sp21',SK,{tt_nom:{'tb_offset.offset_sigma':2.36,'tb_offset.offset_mean':0.05}},{ev:['hist',2.36,0.05,1000]});
+rec('strongarm-comp','20261104T2215Z-offset-ngspice','dkim','','sky130-a/v3',['tb_offset/v2'],'ng43',SK2,{tt_nom:{'tb_offset.offset_sigma':2.39,'tb_offset.offset_mean':0.11}},{ev:['hist',2.39,0.11,1000],note:'tb 网表转成了 ngspice 语法，分析代码没有改动。'});
+rec('strongarm-comp','20261028T1502Z-noise','bob-analog','r08(fable51)','sky130-a/v3',['tb_noise/v1'],'sp23',SK,{tt_nom:{'tb_noise.noise_rms':312}},{ev:['prob',312]});
+rec('strongarm-comp','20261105T0730Z-noise-check','alice-ic','Alice Zhang','sky130-a/v3',['tb_noise/v1'],'sp21',SK,{tt_nom:{'tb_noise.noise_rms':356}},{ev:['prob',356],note:'噪声带宽上限用的是仿真器默认值，可能和原记录不同；tb 没有写明，见 issue #39。'});
+rec('strongarm-comp','20261029T0810Z-speed','bob-analog','r08(fable51)','sky130-a/v3',['tb_speed/v1'],'sp23',SK,{tt_nom:{'tb_speed.delay_1mv':84.2,'tb_speed.energy':41.5},ss_low_125:{'tb_speed.delay_1mv':131.0,'tb_speed.energy':38.9}},{ev:['delay',84.2]});
+rec('strongarm-comp','20261103T1640Z-offset','chen-lab','Chen Wei','sky130-lowoffset/v2',['tb_offset/v2'],'sp21',SK,{tt_nom:{'tb_offset.offset_sigma':1.12,'tb_offset.offset_mean':0.03}},{ev:['hist',1.12,0.03,1000]});
+rec('strongarm-comp','20261106T0915Z-offset-repro','bob-analog','r08(fable51)','sky130-lowoffset/v2',['tb_offset/v2'],'sp23',SK,{tt_nom:{'tb_offset.offset_sigma':1.18,'tb_offset.offset_mean':0.06}},{ev:['hist',1.18,0.06,1000]});
+rec('strongarm-comp','20261103T1712Z-noise-speed','chen-lab','Chen Wei','sky130-lowoffset/v2',['tb_noise/v1','tb_speed/v1'],'sp21',SK,{tt_nom:{'tb_noise.noise_rms':298,'tb_speed.delay_1mv':88.6,'tb_speed.energy':52.0},ss_low_125:{'tb_speed.delay_1mv':139.4,'tb_speed.energy':48.7}},{ev:['delay',88.6]});
+rec('strongarm-comp','20261102T0640Z-offset','dkim','opus-designer','gf180-port/v1',['tb_offset/v2'],'ng43',GF,{tt_nom:{'tb_offset.offset_sigma':2.90,'tb_offset.offset_mean':-0.21}},{ev:['hist',2.90,-0.21,1000]});
+rec('strongarm-comp','20261020T1530Z-model-fit','alice-ic','Alice Zhang','va-noise/v2',['tb_offset/v2','tb_noise/v1','tb_speed/v1'],'sp21','',{tt_nom:{'tb_offset.offset_sigma':3.40,'tb_offset.offset_mean':0.0,'tb_noise.noise_rms':320,'tb_speed.delay_1mv':86.0,'tb_speed.energy':40.0}},{ev:['hist',3.40,0,1000]});
+rec('strongarm-comp','20261030T1105Z-offset','eda-fox','','ext-openlab/v1',['tb_offset/v2'],'ng42',SK,{tt_nom:{'tb_offset.offset_sigma':4.05,'tb_offset.offset_mean':0.31}},{ev:['hist',4.05,0.31,1000]});
+rec('strongarm-comp','20261106T2030Z-offset','newbie-ic','','sky130-fast/v1',['tb_offset/v2'],'ng43',SK2,{tt_nom:{'tb_offset.offset_sigma':2.33,'tb_offset.offset_mean':0.07}},{ev:['hist',2.33,0.07,1000]});
+// others
+rec('cdac-10b','20261026T1340Z-lin','bob-analog','r08(fable51)','sky130-mom/v2',['tb_lin/v1'],'sp23',SK,{tt_nom:{'tb_lin.inl':0.38,'tb_lin.dnl':0.21}},{ev:['inl',0.38]});
+rec('cdac-10b','20261014T1010Z-lin','bob-analog','r08(fable51)','sky130-mom/v1',['tb_lin/v1'],'sp23',SK,{tt_nom:{'tb_lin.inl':0.61,'tb_lin.dnl':0.74}},{ev:['inl',0.61]});
+rec('bootstrap-sw','20261016T1425Z-thd','bob-analog','r08(fable51)','sky130-nmos/v1',['tb_thd/v1'],'sp23',SK,{tt_nom:{'tb_thd.thd':-74.2}},{ev:['spec',74,80]});
+rec('sar-logic-10b','20261019T0900Z-func','alice-ic','Alice Zhang','rtl-basic/v2',['tb_func/v1'],'iv12','',{func:{'tb_func.code_errors':0}});
+rec('sar-logic-10b','20261022T1118Z-func','bob-analog','r08(fable51)','rtl-basic/v2',['tb_func/v1'],'iv12','',{func:{'tb_func.code_errors':0}});
+rec('sar-adc-10b','20261021T1600Z-dyn','alice-ic','Alice Zhang','alice-sar/v1',['tb_dynamic/v1'],'sp21','',{tt_nom:{'tb_dynamic.sndr':60.9,'tb_dynamic.sfdr':76.2}},{ev:['spec',60.9,76.2],note:'模型没有功耗，所以没有 power。'});
+rec('sar-adc-10b','20261030T1820Z-dyn','alice-ic','Alice Zhang','alice-sar/v2',['tb_dynamic/v1'],'sp21',SK,{tt_nom:{'tb_dynamic.sndr':58.7,'tb_dynamic.sfdr':71.3,'tb_dynamic.power':412}},{ev:['spec',58.7,71.3]});
+rec('sar-adc-10b','20261102T1004Z-dyn-repro','bob-analog','r08(fable51)','alice-sar/v2',['tb_dynamic/v1'],'sp23',SK,{tt_nom:{'tb_dynamic.sndr':58.6,'tb_dynamic.sfdr':71.0,'tb_dynamic.power':415}},{ev:['spec',58.6,71.0]});
+rec('sar-adc-10b','20261106T1245Z-dyn-swap','dkim','','alice-sar/v2',['tb_dynamic/v1'],'ng43',SK2,{tt_nom:{'tb_dynamic.sndr':57.9,'tb_dynamic.sfdr':69.8,'tb_dynamic.power':431}},{ev:['spec',57.9,69.8],override:{comp:'strongarm-comp@ext-uni/v1'},note:'把比较器换成带校准的外部实现，看对整体的影响。'});
+rec('sar-adc-10b','20261105T1530Z-dyn','chen-lab','Chen Wei','chen-sar/v1',['tb_dynamic/v1','tb_static/v1'],'sp21',SK,{tt_nom:{'tb_dynamic.sndr':59.4,'tb_dynamic.sfdr':73.8,'tb_dynamic.power':447,'tb_static.inl':0.46,'tb_static.dnl':0.33}},{ev:['spec',59.4,73.8]});
+rec('ota-5t','20261013T0820Z-ac','dkim','','sky130-a/v1',['tb_ac/v1'],'ng43',SK,{tt_nom:{'tb_ac.gain_dc':38.4,'tb_ac.gbw':12.6,'tb_ac.pm':84.0}});
+rec('ota-5t','20261018T1911Z-ac','eda-fox','hand-tuned','sky130-a/v1',['tb_ac/v1'],'ng42',SK,{tt_nom:{'tb_ac.gain_dc':38.3,'tb_ac.gbw':12.8,'tb_ac.pm':83.6}});
+rec('ota-5t','20261027T1002Z-ac','eda-fox','hand-tuned','gf180-a/v1',['tb_ac/v1'],'ng42',GF,{tt_nom:{'tb_ac.gain_dc':41.2,'tb_ac.gbw':6.9,'tb_ac.pm':86.5}});
+rec('ota-5t','20261012T1500Z-ac','dkim','','va/v1',['tb_ac/v1'],'ng43','',{tt_nom:{'tb_ac.gain_dc':38.0,'tb_ac.gbw':12.5,'tb_ac.pm':90.0}});
+rec('bandgap-1v2','20261020T1712Z-tc','chen-lab','Chen Wei','sky130-bjt/v1',['tb_tc/v1'],'ng43',SK,{tt_nom:{'tb_tc.vref':1.198,'tb_tc.tc':28.5}});
+rec('bandgap-1v2','20261031T0840Z-tc','eda-fox','','ext-openlab/v1',['tb_tc/v1'],'ng42',SK,{tt_nom:{'tb_tc.vref':1.204,'tb_tc.tc':9.7}});
+rec('bandgap-1v2','20261104T1322Z-tc-repro','chen-lab','Chen Wei','ext-openlab/v1',['tb_tc/v1'],'ng43',SK,{tt_nom:{'tb_tc.vref':1.204,'tb_tc.tc':9.9}});
+R.forEach(r=>{r.lock=sha(r.dut+'|'+JSON.stringify(r.override||{})+'|'+r.tbs.join(','),10)});
+
+const DISC=[
+ {ip:'strongarm-comp',n:47,kind:'pr',k:'kind/impl',state:'草稿',title:'strongarm-comp@sky130-a/v4：输入管改用低阈值器件',account:'bob-analog',date:'2026-11-09'},
+ {ip:'strongarm-comp',n:45,kind:'pr',k:'kind/verify',state:'检查通过，排队合并',title:'strongarm-comp：复现 sky130-lowoffset/v2 的噪声',account:'dkim',date:'2026-11-08'},
+ {ip:'strongarm-comp',n:42,kind:'issue',k:'kind/defect',state:'开放',title:'sky130-a/v3 在 ss 角、125 °C 下复位不完全',account:'chen-lab',date:'2026-11-06'},
+ {ip:'strongarm-comp',n:39,kind:'issue',k:'kind/tb',state:'开放',title:'tb_noise 没有写明噪声带宽的上限',account:'alice-ic',date:'2026-11-05'},
+ {ip:'strongarm-comp',n:31,kind:'issue',k:'kind/interface',state:'开放',title:'是否需要给定义加一个 en 端口？',account:'dkim',date:'2026-10-29'},
+ {ip:'sar-adc-10b',n:44,kind:'issue',k:'kind/request',state:'开放',title:'需要一个 gf180mcu 的 cdac-10b 实现，才能把 ADC 整体移植过去',account:'dkim',date:'2026-11-07'},
+ {ip:'sar-adc-10b',n:46,kind:'pr',k:'kind/verify',state:'检查未通过',title:'sar-adc-10b：chen-sar/v1 的动态性能复现',account:'bob-analog',date:'2026-11-09'},
+ {ip:'cdac-10b',n:40,kind:'issue',k:'kind/model',state:'开放',title:'ideal/v1 没有寄生电容，顶板增益偏乐观',account:'bob-analog',date:'2026-11-05'},
+ {ip:'ota-5t',n:36,kind:'issue',k:'kind/defect',state:'开放',title:'ext-old/v1 的外部仓库已经删除',account:'eda-fox',date:'2026-11-03'},
+];
+const TYPE={ideal:'理想模型',va:'VA 模型',rtl:'RTL',transistor:'晶体管级',composition:'组合',mixed:'混合'};
+const BETTER={lower:'越小越好',higher:'越大越好',none:'不分好坏'};
+
+/* ---------- model ---------- */
+const ipOf=id=>IPS.find(p=>p.id===id);
+const addr=i=>`${i.ip}@${i.g}/v${i.v}`;
+const implAt=a=>I.find(i=>addr(i)===a);
+const tbAddr=t=>`${t.ip}:${t.g}/v${t.v}`;
+const tbAt=(ip,gv)=>T.find(t=>t.ip===ip&&`${t.g}/v${t.v}`===gv);
+const vnum=s=>+s.split('/v')[1];
+const lImpl=i=>L('impl',i.ip,i.g,'v'+i.v), lTb=t=>L('tb',t.ip,t.g,'v'+t.v), lRec=r=>L('rec',r.ip,r.id), lIp=(id,tab)=>tab?L('ip',id,tab):L('ip',id);
+function prov(i){
+  const o=i.origin;
+  if(!o) return {kind:'native',label:'平台内',lic:'CERN-OHL-P-2.0',pat:'waived'};
+  if(o.mode==='included') return {kind:'included',label:`收录自 ${o.repo}@${o.sha}`,lic:o.license,pat:'waived'};
+  const pat=Array.isArray(o.patents)?'declared':/^(Apache-2\.0|CERN-OHL)/.test(o.license)?'granted':'notgranted';
+  return {kind:'reference',label:`引用 ${o.repo}@${o.sha}`,lic:o.license,pat};
+}
+const PAT={waived:['已放弃','verified'],granted:['许可证授予','info'],notgranted:['未授予','self'],declared:['已声明专利','disputed']};
+function groupsFor(dut,tbg){
+  const m={};
+  R.filter(r=>r.dut===dut).forEach(r=>{const tv=r.tbs.find(t=>t.startsWith(tbg+'/'));if(!tv)return;
+    const k=tv+'|'+r.lock;(m[k]=m[k]||{tbv:tv,lock:r.lock,override:r.override,recs:[]}).recs.push(r)});
+  return Object.values(m).map(g=>(g.recs.sort((a,b)=>a.id<b.id?-1:1),g))
+    .sort((a,b)=>(!!a.override-!!b.override)||vnum(b.tbv)-vnum(a.tbv)||b.recs.length-a.recs.length);
+}
+const tolOf=(m,ref)=>Math.max(m.tol.abs||0,(m.tol.rel||0)*Math.abs(ref));
+const tolText=m=>[m.tol.abs!=null?`±${m.tol.abs} ${m.unit}`:'',m.tol.rel!=null?`±${m.tol.rel*100}%`:''].filter(Boolean).join(' 或 ');
+const envKey=r=>ENV[r.env].sim+' '+ENV[r.env].ver.split('.')[0]+'|'+r.pdk;
+function metricState(dut,tbg,mid,cs){
+  const ip=dut.split('@')[0], g=groupsFor(dut,tbg)[0];
+  if(!g) return {state:'none'};
+  const tb=tbAt(ip,g.tbv), m=tb.metrics.find(x=>x.id===mid); if(!m) return {state:'none'};
+  cs=cs||Object.keys(tb.cases)[0];
+  const rs=g.recs.filter(r=>r.cases[cs]&&r.cases[cs][tbg+'.'+mid]!=null); if(!rs.length) return {state:'none'};
+  const vals=rs.map(r=>r.cases[cs][tbg+'.'+mid]), ref=vals[0], n=uniq(rs.map(r=>r.account)).length;
+  const ok=vals.every(v=>Math.abs(v-ref)<=tolOf(m,ref)+1e-12);
+  return {state:n<2?'self':ok?'verified':'disputed',n,value:ref,vals,recs:rs,tbv:g.tbv,m,cs,cross:uniq(rs.map(envKey)).length>1};
+}
+function implSummary(i){
+  const a=addr(i), c={verified:0,self:0,disputed:0};
+  uniq(T.filter(t=>t.ip===i.ip).map(t=>t.g)).forEach(tbg=>{
+    const mids=uniq(T.filter(t=>t.ip===i.ip&&t.g===tbg).flatMap(t=>t.metrics.map(m=>m.id)));
+    mids.forEach(mid=>{const s=metricState(a,tbg,mid).state;if(c[s]!=null)c[s]++});
+  });
+  return c;
+}
+function reqCheck(ref,key,cond){
+  const [tbg,mid]=key.split('.'), ms=metricState(ref,tbg,mid);
+  if(ms.state==='none') return {ms,res:'none'};
+  const ok=cond.max!=null?ms.value<=cond.max:ms.value>=cond.min;
+  return {ms,res:ms.state==='disputed'?'disputed':ok?'ok':'fail'};
+}
+function expand(i,path='',over={}){
+  const kids=i.uses?Object.entries(i.uses).map(([inst,u])=>{const p=path?path+'.'+inst:inst, ref=over[p]||u.ref, c=implAt(ref);
+    return c?{...expand(c,p,over),inst,req:u.req,swapped:!!over[p]}:null}).filter(Boolean):[];
+  return {i,path,kids};
+}
+const flat=n=>[n,...n.kids.flatMap(flat)];
+const usedBy=ipId=>I.filter(i=>i.uses&&Object.values(i.uses).some(u=>u.ref.startsWith(ipId+'@')));
+const latestOfGroup=ipId=>{const m={};I.filter(i=>i.ip===ipId).forEach(i=>{if(!m[i.g]||m[i.g].v<i.v)m[i.g]=i});return Object.values(m)};
+
+/* ---------- small renderers ---------- */
+const tBadge=t=>`<span class="tb t-${t}">${TYPE[t]}</span>`;
+const pBadge=p=>p?`<span class="pill mono">${esc(p)}</span>`:'<span class="faint">—</span>';
+const who=o=>`${o.author?esc(o.author)+' · ':''}<a href="${L('user',o.account)}">@${esc(o.account)}</a>`;
+const st=(cls,txt)=>`<span class="st ${cls}">${txt}</span>`;
+const stateBadge=ms=>ms.state==='verified'?st('verified',`已验证 ×${ms.n}`):ms.state==='self'?st('self','自报'):ms.state==='disputed'?st('disputed','有争议'):st('none','无数据');
+const patBadge=p=>st(PAT[p][1],PAT[p][0]);
+const aImpl=a=>{const i=implAt(a);return i?`<a class="mono" href="${lImpl(i)}">${esc(a)}</a>`:`<span class="mono">${esc(a)}</span>`};
+const provBadge=i=>{const p=prov(i);return p.kind==='native'?'<span class="muted">平台内</span>':st('ext',p.kind==='included'?'收录':'引用')};
+const summaryBadges=c=>[c.verified?st('verified',`已验证 ${c.verified} 项`):'',c.disputed?st('disputed',`有争议 ${c.disputed} 项`):'',c.self?st('self',`自报 ${c.self} 项`):''].join(' ')||st('none','没有验证记录');
+const panel=(title,sub,body,flush)=>`<section class="panel"><header><h2>${title}</h2>${sub?`<span class="sub">${sub}</span>`:''}</header>${flush?`<div class="scroll">${body}</div>`:`<div class="body">${body}</div>`}</section>`;
+const kv=rows=>`<dl class="kv">${rows.filter(Boolean).map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`;
+const condText=(c,unit)=>(c.max!=null?'≤ '+c.max:'≥ '+c.min)+' '+unit;
+
+function symbol(ip){
+  const Lp=ip.pins.filter(p=>p.dir==='in'||p.dir==='inout'), Rp=ip.pins.filter(p=>p.dir==='out'), Tp=ip.pins.filter(p=>p.kind==='supply'), Bp=ip.pins.filter(p=>p.kind==='ground');
+  const rows=Math.max(Lp.length,Rp.length,2), bw=Math.max(140,Math.max(Tp.length,Bp.length)*60), bh=rows*24+16, x0=92,y0=40, W=bw+184, H=bh+80;
+  const nm=p=>esc(p.name+(p.w?`[${p.w-1}:0]`:''));
+  let s=`<rect x="${x0}" y="${y0}" width="${bw}" height="${bh}" rx="3" fill="var(--surface)" stroke="var(--ink)" stroke-width="1.5"/>`;
+  s+=`<text x="${x0+bw/2}" y="${y0+bh/2+4}" text-anchor="middle" font-size="11" fill="var(--faint)">${esc(ip.id.replace(/-/g,'_'))}</text>`;
+  const side=(ps,left)=>ps.forEach((p,k)=>{const y=y0+20+k*24+(rows-ps.length)*12, xa=left?x0-26:x0+bw, xb=left?x0:x0+bw+26;
+    s+=`<line x1="${xa}" y1="${y}" x2="${xb}" y2="${y}" stroke="var(--ink)" stroke-width="${p.w?3:1.5}"/><text x="${left?x0-31:x0+bw+31}" y="${y+4}" text-anchor="${left?'end':'start'}" font-size="11.5" fill="var(--ink)">${nm(p)}</text>`});
+  side(Lp,true);side(Rp,false);
+  const cap=(ps,top)=>ps.forEach((p,k)=>{const x=x0+bw*(k+1)/(ps.length+1), ya=top?y0-18:y0+bh, yb=top?y0:y0+bh+18;
+    s+=`<line x1="${x}" y1="${ya}" x2="${x}" y2="${yb}" stroke="var(--ink)" stroke-width="1.5"/><text x="${x}" y="${top?y0-23:y0+bh+31}" text-anchor="middle" font-size="11.5" fill="var(--ink)">${nm(p)}</text>`});
+  cap(Tp,true);cap(Bp,false);
+  return `<svg class="sym" viewBox="0 0 ${W} ${H}" width="${W}" style="max-width:100%;height:auto" role="img" aria-label="由 IO 定义生成的符号">${s}</svg>`;
+}
+function lineage(ipId){
+  const vs=I.filter(i=>i.ip===ipId).slice().sort((a,b)=>byDate(a,b)||a.v-b.v), groups=uniq(vs.map(i=>i.g));
+  const lw=250, step=Math.max(44,Math.min(72,(1040-lw-60)/Math.max(1,vs.length-1))), W=lw+40+step*(vs.length-1)+60, H=groups.length*38+20;
+  const pos={};vs.forEach((i,k)=>pos[addr(i)]={x:lw+40+k*step,y:29+groups.indexOf(i.g)*38});
+  let s='';
+  groups.forEach((g,k)=>{const y=29+k*38, f=vs.find(i=>i.g===g), xs=vs.filter(i=>i.g===g).map(i=>pos[addr(i)].x);
+    s+=`<line x1="${lw+10}" y1="${y}" x2="${W-14}" y2="${y}" stroke="var(--line)" stroke-width="1"/>`;
+    s+=`<text x="8" y="${y-2}" font-size="12.5" font-weight="600" fill="var(--ink)">${esc(g)}</text><text x="8" y="${y+13}" font-size="10.5" fill="var(--faint)">@${esc(f.account)} · ${TYPE[f.type]}${f.proc?' · '+esc(f.proc):''}</text>`;
+    if(xs.length>1) s+=`<line x1="${xs[0]}" y1="${y}" x2="${xs[xs.length-1]}" y2="${y}" stroke="var(--t-${f.type})" stroke-width="2.5"/>`});
+  vs.forEach(i=>i.based.forEach(b=>{const p=pos[b],q=pos[addr(i)];if(!p)return;
+    s+=`<path d="M${p.x} ${p.y} C${p.x+step*.6} ${p.y}, ${q.x-step*.6} ${q.y}, ${q.x} ${q.y}" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="4 3"/>`}));
+  vs.forEach(i=>{const p=pos[addr(i)], ext=i.origin;
+    s+=`<a href="${lImpl(i)}"><title>${esc(addr(i))} · ${i.date}</title><circle cx="${p.x}" cy="${p.y}" r="8.5" fill="${ext?'var(--surface)':`var(--t-${i.type})`}" stroke="var(--t-${i.type})" stroke-width="2.5"/><text x="${p.x}" y="${p.y-13}" text-anchor="middle" font-size="10.5" fill="var(--muted)">v${i.v}</text></a>`});
+  return `<div class="scroll"><svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="实现的版本树">${s}</svg></div>
+  <div class="legend"><span><svg width="26" height="8"><line x1="0" y1="4" x2="26" y2="4" stroke="var(--ink)" stroke-width="2.5"/></svg>同一组的后续版本</span><span><svg width="26" height="8"><line x1="0" y1="4" x2="26" y2="4" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="4 3"/></svg>基于别的版本改进（based_on）</span><span><svg width="12" height="12"><circle cx="6" cy="6" r="4.5" fill="var(--surface)" stroke="var(--ink)" stroke-width="2"/></svg>外部实现</span><span>横向按合并时间排列，点圆点打开版本</span></div>`;
+}
+function niceTicks(a,b,n){const raw=(b-a)/n||1, p=Math.pow(10,Math.floor(Math.log10(raw))), f=raw/p, st=(f<1.5?1:f<3.5?2:f<7.5?5:10)*p, out=[];
+  for(let v=Math.ceil(a/st)*st;v<=b+st*1e-6;v+=st)out.push(+v.toFixed(10));return out}
+function chart(e){
+  const W=600,H=250,m={l:58,r:16,t:14,b:42}, pw=W-m.l-m.r, ph=H-m.t-m.b;
+  let x0=Math.min(...e.xs),x1=Math.max(...e.xs); if(e.kind==='hist'){const w=(e.xs[1]-e.xs[0])/2;x0-=w;x1+=w}
+  let y0=e.ymin!=null?e.ymin:Math.min(...e.ys), y1=e.ymax!=null?e.ymax:Math.max(...e.ys);
+  if(e.kind==='hist')y0=0; const pad=(y1-y0)*.06||1; if(e.ymax==null)y1+=pad; if(e.kind!=='hist'&&e.ymin==null)y0-=pad;
+  const X=v=>m.l+(v-x0)/(x1-x0)*pw, Y=v=>m.t+ph-(v-y0)/(y1-y0)*ph;
+  let s=`<rect x="${m.l}" y="${m.t}" width="${pw}" height="${ph}" fill="var(--surface)" stroke="var(--line)"/>`;
+  niceTicks(y0,y1,5).forEach(v=>{s+=`<line x1="${m.l}" y1="${Y(v)}" x2="${m.l+pw}" y2="${Y(v)}" stroke="var(--line)" stroke-width=".7"/><text x="${m.l-7}" y="${Y(v)+4}" text-anchor="end" font-size="10.5" fill="var(--muted)">${v}</text>`});
+  niceTicks(x0,x1,6).forEach(v=>{s+=`<line x1="${X(v)}" y1="${m.t+ph}" x2="${X(v)}" y2="${m.t+ph+4}" stroke="var(--muted)"/><text x="${X(v)}" y="${m.t+ph+16}" text-anchor="middle" font-size="10.5" fill="var(--muted)">${v}</text>`});
+  if(e.kind==='hist'){const bw=pw/e.xs.length*.86;e.xs.forEach((x,k)=>{s+=`<rect x="${X(x)-bw/2}" y="${Y(e.ys[k])}" width="${bw}" height="${Math.max(0,m.t+ph-Y(e.ys[k]))}" fill="var(--accent)" opacity=".85"/>`})}
+  else{s+=`<polyline points="${e.xs.map((x,k)=>X(x).toFixed(1)+','+Y(Math.max(y0,e.ys[k])).toFixed(1)).join(' ')}" fill="none" stroke="var(--accent)" stroke-width="${e.kind==='spec'?1:2}"/>`;
+    if(e.kind==='curve')e.xs.forEach((x,k)=>{s+=`<circle cx="${X(x)}" cy="${Y(e.ys[k])}" r="2.6" fill="var(--accent)"/>`})}
+  s+=`<text x="${m.l+pw/2}" y="${H-6}" text-anchor="middle" font-size="11" fill="var(--muted)">${esc(e.xl)}</text><text transform="translate(13 ${m.t+ph/2}) rotate(-90)" text-anchor="middle" font-size="11" fill="var(--muted)">${esc(e.yl)}</text>`;
+  return `<figure style="margin:0;display:flex;flex-direction:column;gap:6px"><figcaption class="mono muted">${esc(e.file)}</figcaption><div class="scroll"><svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${esc(e.title)}">${s}</svg></div><span class="faint" style="font-size:12.5px">${esc(e.title)}</span></figure>`;
+}
+function evidence(r){
+  if(!r.ev) return null; const [k,a,b,c]=r.ev, rnd=rng(hstr(r.id));
+  if(k==='hist'){const xs=[],ys=[],n=17,w=a*8/n;for(let j=0;j<n;j++){const x=b-4*a+w*(j+.5), pdf=Math.exp(-((x-b)**2)/(2*a*a))/(a*Math.sqrt(2*Math.PI));xs.push(+x.toFixed(2));ys.push(Math.max(0,Math.round(c*pdf*w*(.86+.28*rnd()))))}
+    return {kind:'hist',file:'evidence/tt_nom.offset_hist.csv',title:`蒙特卡洛 ${c} 次的输入失调分布`,xl:'输入失调 (mV)',yl:'次数',xs,ys}}
+  if(k==='delay'){const xs=[-4,-3.5,-3,-2.5,-2,-1.5,-1], ys=xs.map(x=>+(a+(-3-x)*a*.21+rnd()*.8).toFixed(1));
+    return {kind:'curve',file:'evidence/tt_nom.delay_vs_vin.csv',title:'判决延时随输入差的变化',xl:'log10(输入差 / V)',yl:'延时 (ps)',xs,ys}}
+  if(k==='prob'){const xs=[],ys=[];for(let x=-1000;x<=1000;x+=125){xs.push(x);ys.push(+(100/(1+Math.exp(-1.702*x/a))).toFixed(1))}
+    return {kind:'curve',file:'evidence/tt_nom.decision_prob.csv',title:'输出为 1 的概率随输入差的变化，由它拟合出噪声',xl:'输入差 (µV)',yl:'输出为 1 的比例 (%)',xs,ys}}
+  if(k==='inl'){const xs=[],ys=[];for(let x=0;x<1024;x+=16){xs.push(x);ys.push(+(a*.8*Math.sin(x/1024*Math.PI*2)*(.6+.4*Math.sin(x/37))+(rnd()-.5)*a*.3).toFixed(3))}
+    return {kind:'line',file:'evidence/tt_nom.inl.csv',title:'各码的积分非线性',xl:'输入码',yl:'INL (LSB)',xs,ys}}
+  if(k==='spec'){const xs=[],ys=[],fl=-(a+27);for(let j=1;j<=256;j++){xs.push(+(j*500/256).toFixed(1));ys.push(+(fl+(rnd()-.5)*9).toFixed(1))}
+    ys[56]=0;ys[112]=-b;ys[168]=-(b+4);ys[224]=-(b+9);
+    return {kind:'spec',file:'evidence/tt_nom.spectrum.csv',title:'输出频谱（1024 点 FFT，相干采样）',xl:'频率 (kHz)',yl:'幅度 (dBFS)',xs,ys,ymin:-120,ymax:5}}
+  return null;
+}
+
+/* ---------- pages ---------- */
+const LIB={q:'',type:'',proc:'',ver:false};
+function ipRow(p){
+  const im=I.filter(i=>i.ip===p.id), types=uniq(im.map(i=>i.type)), procs=uniq(im.map(i=>i.proc).filter(Boolean));
+  const c={verified:0,self:0,disputed:0};latestOfGroup(p.id).forEach(i=>{const s=implSummary(i);for(const k in c)c[k]+=s[k]});
+  const last=[...im,...T.filter(t=>t.ip===p.id),...R.filter(r=>r.ip===p.id)].map(o=>o.date).sort().pop();
+  return {p,im,types,procs,c,last,tbs:uniq(T.filter(t=>t.ip===p.id).map(t=>t.g)).length,recs:R.filter(r=>r.ip===p.id).length};
+}
+function libRows(){
+  const q=LIB.q.trim().toLowerCase();
+  const rows=IPS.map(ipRow).filter(r=>(!q||(r.p.id+r.p.title+r.p.desc).toLowerCase().includes(q))&&(!LIB.type||r.types.includes(LIB.type))&&(!LIB.proc||r.procs.includes(LIB.proc))&&(!LIB.ver||r.c.verified>0));
+  if(!rows.length) return '<div class="body muted">没有符合条件的 IP。试试放宽筛选条件。</div>';
+  return `<div class="scroll"><table><thead><tr><th>IP</th><th>端口</th><th>实现</th><th>工艺</th><th class="r">tb</th><th class="r">验证记录</th><th>各组最新版本的验证情况</th><th class="nw">最近更新</th></tr></thead><tbody>${rows.map(r=>`<tr>
+   <td><a class="ipname" href="${lIp(r.p.id)}">${r.p.id}</a><div class="muted">${esc(r.p.title)}</div></td>
+   <td class="num">${r.p.pins.length}</td>
+   <td><div class="row" style="gap:4px 6px">${r.types.map(t=>tBadge(t)+`<span class="num faint">${r.im.filter(i=>i.type===t).length}</span>`).join('')}</div></td>
+   <td><div class="row" style="gap:4px">${r.procs.map(pBadge).join('')||'<span class="faint">—</span>'}</div></td>
+   <td class="r num">${r.tbs}</td><td class="r num">${r.recs}</td>
+   <td><div class="row" style="gap:4px">${summaryBadges(r.c)}</div></td>
+   <td class="nw num muted">${r.last}</td></tr>`).join('')}</tbody></table></div>`;
+}
+function activity(n,filter){
+  const ev=[...IPS.map(p=>({date:p.date,o:p,txt:`新 IP <a class="mono" href="${lIp(p.id)}">${p.id}</a>`})),
+   ...I.map(i=>({date:i.date,o:i,txt:`${i.origin?(i.origin.mode==='included'?'收录外部实现':'引用外部实现'):i.v>1?'实现新版本':'新实现'} ${aImpl(addr(i))}`})),
+   ...T.map(t=>({date:t.date,o:t,txt:`${t.v>1?'tb 新版本':'新 tb'} <a class="mono" href="${lTb(t)}">${tbAddr(t)}</a>`})),
+   ...R.map(r=>({date:r.date+' '+r.time,o:r,txt:`验证记录 <a class="mono" href="${lRec(r)}">${r.dut}</a> · ${r.tbs.map(t=>t.split('/')[0]).join('、')}`}))]
+   .filter(e=>!filter||filter(e.o)).sort((a,b)=>a.date<b.date?1:-1).slice(0,n);
+  return `<div class="feed">${ev.map(e=>`<div><span>${e.txt}</span><span class="when">${e.date.slice(0,10)} · ${who(e.o)}</span></div>`).join('')}</div>`;
+}
+function pageHome(){
+  const procs=uniq(I.map(i=>i.proc).filter(Boolean)).sort();
+  return `<div class="stack" style="gap:14px"><h1>公开的 IC 设计 IP 库</h1>
+   <p class="lede">每个 IP 有一份定义（名字、描述、端口）。任何人都可以为它提交实现、tb 和验证记录；不同账号复现出一致的数值，这个数值就算已验证。</p>
+   <div class="stats"><div><b>${IPS.length}</b><span>IP</span></div><div><b>${I.length}</b><span>实现版本</span></div><div><b>${T.length}</b><span>tb 版本</span></div><div><b>${R.length}</b><span>验证记录</span></div><div><b>${uniq([...I,...T,...R].map(o=>o.account)).length}</b><span>贡献账号</span></div></div></div>
+  <div class="cols"><div>
+   <section class="panel"><header><h2>IP 库</h2>
+     <div class="filters" style="flex:1 1 100%">
+      <input type="search" id="lib-q" placeholder="按名字或描述搜索" value="${esc(LIB.q)}" aria-label="搜索 IP">
+      <select id="lib-type" aria-label="实现类型"><option value="">全部实现类型</option>${Object.keys(TYPE).map(t=>`<option value="${t}"${LIB.type===t?' selected':''}>${TYPE[t]}</option>`).join('')}</select>
+      <select id="lib-proc" aria-label="工艺"><option value="">全部工艺</option>${procs.map(p=>`<option${LIB.proc===p?' selected':''}>${p}</option>`).join('')}</select>
+      <label class="chk"><input type="checkbox" id="lib-ver"${LIB.ver?' checked':''}>只看有已验证数据的</label>
+     </div></header><div id="lib-rows">${libRows()}</div></section>
+  </div><div>
+   ${panel('最近合并','<a href="#" data-ph="订阅源">feeds/all.atom</a>',activity(9),true)}
+  </div></div>`;
+}
+function reqTable(rows){ // rows: [{label, ref, key, cond}]
+  return `<div class="scroll"><table><thead><tr><th>提出要求的组合</th><th>固定的版本</th><th>指标</th><th class="r">要求</th><th class="r">现有数值</th><th>结论</th></tr></thead><tbody>${rows.map(x=>{
+    const [tbg,mid]=x.key.split('.'), ck=reqCheck(x.ref,x.key,x.cond), tb=T.find(t=>t.ip===x.ref.split('@')[0]&&t.g===tbg), unit=tb?tb.metrics.find(m=>m.id===mid).unit:'';
+    const res={ok:st('verified','满足'),fail:st('disputed','不满足'),disputed:st('disputed','数值有争议'),none:st('none','没有数据')}[ck.res];
+    return `<tr><td>${x.label}</td><td>${aImpl(x.ref)}</td><td class="mono">${x.key}</td><td class="r num nw">${condText(x.cond,unit)}</td><td class="r nw">${ck.ms.state==='none'?'<span class="faint">—</span>':`<span class="num">${fmt(ck.ms.value)} ${unit}</span> ${stateBadge(ck.ms)}`}</td><td>${res}</td></tr>`}).join('')}</tbody></table></div>`;
+}
+function ipTabs(p,tab){
+  const n={impls:latestOfGroup(p.id).length,tbs:uniq(T.filter(t=>t.ip===p.id).map(t=>t.g)).length,data:R.filter(r=>r.ip===p.id).length,talk:DISC.filter(d=>d.ip===p.id).length};
+  const t=(id,txt,c)=>`<a class="${tab===id?'on':''}" href="${id==='overview'?lIp(p.id):lIp(p.id,id)}">${txt}${c!=null?`<span class="n">${c}</span>`:''}</a>`;
+  return `<div class="tabs">${t('overview','概览')}${t('impls','实现',n.impls)}${t('tbs','tb',n.tbs)}${t('data','验证数据',n.data)}${t('talk','讨论',n.talk)}</div>`;
+}
+function implTable(list){
+  return `<div class="scroll"><table><thead><tr><th>地址</th><th>类型</th><th>工艺</th><th>署名 · 账号</th><th>来路</th><th>专利</th><th>验证情况</th><th class="nw">合并日期</th></tr></thead><tbody>${list.map(i=>`<tr>
+   <td class="nw">${aImpl(addr(i))}${i.suspect?`<div>${st('disputed','疑似未声明来源')}</div>`:''}<div class="muted" style="white-space:normal;min-width:180px">${esc(i.sum)}</div></td>
+   <td>${tBadge(i.type)}</td><td>${pBadge(i.proc)}</td><td class="nw">${who(i)}</td><td class="nw">${provBadge(i)} <span class="mono faint">${esc(prov(i).lic)}</span></td><td>${patBadge(prov(i).pat)}</td>
+   <td><div class="row" style="gap:4px">${summaryBadges(implSummary(i))}</div></td><td class="num muted nw">${i.date}</td></tr>`).join('')}</tbody></table></div>`;
+}
+function datasheet(p){
+  const tbgs=uniq(T.filter(t=>t.ip===p.id).map(t=>t.g)), cols=tbgs.map(g=>{const vs=T.filter(t=>t.ip===p.id&&t.g===g).sort((a,b)=>b.v-a.v);return {g,latest:vs[0],metrics:vs[0].metrics}});
+  const rows=latestOfGroup(p.id).sort(byDate);
+  if(!cols.length) return '<div class="body muted">这个 IP 还没有 tb，所以没有可比的指标。</div>';
+  const arrow={lower:'↓',higher:'↑',none:''};
+  const reqs=usedBy(p.id).flatMap(c=>Object.entries(c.uses).filter(([,u])=>u.ref.startsWith(p.id+'@')&&u.req).map(([inst,u])=>({c,inst,u})));
+  return `<div class="scroll"><table><thead>
+   <tr><th rowspan="2">实现（各组最新版本）</th><th rowspan="2">类型</th><th rowspan="2">工艺</th>${cols.map(c=>`<th colspan="${c.metrics.length}"><a class="mono" href="${lTb(c.latest)}">${c.g}</a> <span class="faint">最新 v${c.latest.v}</span></th>`).join('')}</tr>
+   <tr>${cols.map(c=>c.metrics.map(m=>`<th class="r" title="${esc(m.desc)}">${m.id} <span class="faint">${m.unit} ${arrow[m.better]}</span></th>`).join('')).join('')}</tr></thead><tbody>
+   ${reqs.map(x=>`<tr><td class="nw muted">要求：${aImpl(addr(x.c))} 的 <span class="mono">${x.inst}</span></td><td></td><td></td>${cols.map(c=>c.metrics.map(m=>{const q=x.u.req[c.g+'.'+m.id];return `<td class="r num muted nw">${q?(q.max!=null?'≤ '+q.max:'≥ '+q.min):''}</td>`}).join('')).join('')}</tr>`).join('')}
+   ${rows.map(i=>`<tr><td class="nw">${aImpl(addr(i))}<div class="faint">${who(i)}</div></td><td>${tBadge(i.type)}</td><td>${pBadge(i.proc)}</td>${cols.map(c=>c.metrics.map(m=>{
+     const ms=metricState(addr(i),c.g,m.id); if(ms.state==='none') return '<td class="r faint">—</td>';
+     return `<td class="r"><a class="dsval" href="${lRec(ms.recs[0])}" title="${ms.state==='verified'?`${ms.n} 个账号的数值一致`:ms.state==='self'?'只有一个账号的记录':'不同账号的数值超出容差'}（${ms.tbv}，${ms.cs}）"><span class="dot ${ms.state}"></span><span class="num">${fmt(ms.value)}</span>${ms.state==='verified'?`<span class="faint num">×${ms.n}</span>`:''}${vnum(ms.tbv)<c.latest.v?`<span class="pill">tb v${vnum(ms.tbv)}</span>`:''}</a></td>`}).join('')).join('')}</tr>`).join('')}
+   </tbody></table></div>`;
+}
+function pageIp(id,tab='overview'){
+  const p=ipOf(id); if(!p) return notFound();
+  const im=I.filter(i=>i.ip===id), head=`<div class="crumb"><a href="#">IP 库</a><span>/</span><span>${id}</span></div>
+   <div class="head"><div><div class="addr">${id}</div><h1>${esc(p.title)}</h1><p class="lede">${esc(p.desc)}</p>
+    <div class="row muted" style="font-size:13px"><span>定义者 ${who(p)}</span><span>${p.date}</span><span>许可证 MIT</span></div></div></div>${ipTabs(p,tab)}`;
+  if(tab==='impls') return head+panel('版本树',`${latestOfGroup(id).length} 个实现组，${im.length} 个版本`,lineage(id))+
+    panel('全部版本','一个实现组是一个账号的版本链；改进别人的实现时另开一组',implTable(im.slice().sort((a,b)=>byDate(b,a)||b.v-a.v)),true);
+  if(tab==='tbs'){const gs=uniq(T.filter(t=>t.ip===id).map(t=>t.g));
+    return head+`<p class="note">每个 tb 定义一组指标，并自带仿真网表、仿真命令和分析代码。指标的全名是 <code>&lt;tb 组&gt;.&lt;指标&gt;</code>，谁都可以贡献新的 tb。</p>`+gs.map(g=>{const vs=T.filter(t=>t.ip===id&&t.g===g).sort((a,b)=>b.v-a.v), t=vs[0];
+      return panel(`<a class="mono" href="${lTb(t)}">${g}</a>`,`${vs.map(v=>`<a href="${lTb(v)}">v${v.v}</a>`).join(' · ')} · ${who(t)} · 写给 ${t.sim}`,
+       `<table><thead><tr><th>指标</th><th>单位</th><th>方向</th><th>复现容差</th><th>怎么测</th></tr></thead><tbody>${t.metrics.map(m=>`<tr><td class="mono nw">${g}.${m.id}</td><td class="nw">${m.unit}</td><td class="nw">${BETTER[m.better]}</td><td class="num nw">${tolText(m)}</td><td>${esc(m.desc)}</td></tr>`).join('')}</tbody></table>`,true)}).join('');}
+  if(tab==='data') return head+`<div class="legend"><span><span class="dot verified"></span>已验证：两个以上账号的数值在容差内一致</span><span><span class="dot self"></span>自报：只有一个账号的记录</span><span><span class="dot disputed"></span>有争议：不同账号的数值超出容差</span><span>数值取每个 tb 的第一个工况，点数值看记录</span></div>`+
+    panel('数据表','行是实现，列是 tb 定义的指标',datasheet(p),true)+
+    panel('全部验证记录',`${R.filter(r=>r.ip===id).length} 条`,recTable(R.filter(r=>r.ip===id)),true);
+  if(tab==='talk'){const ds=DISC.filter(d=>d.ip===id);
+    return head+`<p class="note">这是网站构建时从 GitHub 取的快照。issue 和 PR 都由机器人打上 <code>ip/${id}</code> 标签，下面的链接在 GitHub 上按这个标签筛选。</p>
+    <div class="row"><a class="btn" href="#" data-ph="GitHub 上按标签筛选的 issue 列表">在 GitHub 上看这个 IP 的 issue</a><a class="btn" href="#" data-ph="GitHub 上按标签筛选的 PR 列表">在 GitHub 上看这个 IP 的 PR</a><a class="btn" href="#" data-ph="订阅源">订阅 feeds/${id}.atom</a></div>`+
+    panel('开放的 issue 和 PR',`${ds.length} 条`,ds.length?`<table><thead><tr><th>#</th><th>类型</th><th>标题</th><th>状态</th><th>账号</th><th>日期</th></tr></thead><tbody>${ds.map(d=>`<tr><td class="num">#${d.n}</td><td class="nw">${d.kind==='pr'?'PR':'issue'} <span class="pill mono">${d.k}</span></td><td>${esc(d.title)}</td><td class="nw">${esc(d.state)}</td><td class="nw"><a href="${L('user',d.account)}">@${d.account}</a></td><td class="num muted nw">${d.date}</td></tr>`).join('')}</tbody></table>`:'<div class="body muted">目前没有开放的 issue 或 PR。</div>',true);}
+  // overview
+  const pinKind={analog:'模拟',digital:'数字',supply:'电源',ground:'地'}, pinDir={in:'输入',out:'输出',inout:'双向','':'—'};
+  const reqRows=usedBy(id).flatMap(c=>Object.entries(c.uses).filter(([,u])=>u.ref.startsWith(id+'@')).flatMap(([inst,u])=>Object.entries(u.req||{}).map(([key,cond])=>({label:`${aImpl(addr(c))} · <span class="mono">${inst}</span>`,ref:u.ref,key,cond}))));
+  const users=usedBy(id);
+  return head+`<div class="cols"><div>
+    ${panel('定义','只有名字、描述和端口，相当于一个子电路头',`<div class="row" style="align-items:flex-start;gap:16px 28px"><div style="flex:1 1 320px;min-width:0" class="scroll"><table><thead><tr><th>端口</th><th>方向</th><th>种类</th><th class="r">位宽</th></tr></thead><tbody>${p.pins.map(x=>`<tr><td class="mono">${x.name}</td><td>${pinDir[x.dir]}</td><td>${pinKind[x.kind]}</td><td class="r num">${x.w||1}</td></tr>`).join('')}</tbody></table></div>${symbol(p)}</div>
+      <pre>subckt ${id.replace(/-/g,'_')} ( ${p.pins.map(x=>x.w?`${x.name}_${x.w-1} … ${x.name}_0`:x.name).join(' ')} )</pre>`)}
+    ${panel('实现',`<a href="${lIp(id,'impls')}">看版本树</a>`,implTable(latestOfGroup(id).sort((a,b)=>byDate(b,a))),true)}
+    ${users.length?panel('被这些组合引用','组合固定到具体版本，并可以对指标提要求',reqRows.length?reqTable(reqRows):`<div class="body">${users.map(c=>aImpl(addr(c))).join('、')}（没有提指标要求）</div>`,true):''}
+   </div><div>
+    ${panel('订阅与筛选','',`<a href="#" data-ph="订阅源">订阅源 feeds/${id}.atom</a><a href="#" data-ph="GitHub 上按标签筛选的列表">GitHub 上带 ip/${id} 标签的 issue 和 PR</a><a href="${lIp(id,'talk')}">开放的讨论 ${DISC.filter(d=>d.ip===id).length} 条</a>`)}
+    ${panel('这个 IP 的最近合并','',activity(7,o=>(o.ip||o.id)===id),true)}
+   </div></div>`;
+}
+function recTable(rs){
+  if(!rs.length) return '<div class="body muted">还没有验证记录。</div>';
+  return `<table><thead><tr><th>记录</th><th>被测实现</th><th>tb 版本</th><th>仿真器</th><th>署名 · 账号</th><th class="nw">日期</th></tr></thead><tbody>${rs.slice().sort((a,b)=>a.id<b.id?1:-1).map(r=>`<tr>
+   <td class="nw"><a class="mono" href="${lRec(r)}">${r.id}</a>${r.override?` ${st('info','替换了实例')}`:''}</td><td class="nw">${aImpl(r.dut)}</td>
+   <td class="nw">${r.tbs.map(t=>{const tb=tbAt(r.ip,t);return `<a class="mono" href="${lTb(tb)}">${t}</a>`}).join('<br>')}</td>
+   <td class="nw">${ENV[r.env].sim} ${ENV[r.env].ver}</td><td class="nw">${who(r)}</td><td class="num muted nw">${r.date}</td></tr>`).join('')}</tbody></table>`;
+}
+function treeHtml(n,root=true){
+  const i=n.i, p=prov(i);
+  return `<li><div>${n.inst?`<span class="mono muted">${esc(n.inst)}</span><span class="faint">→</span>`:''}${root?`<span class="mono"><b>${esc(addr(i))}</b></span>`:aImpl(addr(i))}${n.swapped?st('info','本次替换'):''}${tBadge(i.type)}${i.proc?pBadge(i.proc):''}<span class="mono faint">${esc(p.lic)}</span>${patBadge(p.pat)}${p.kind==='reference'?st('ext','引用'):''}${i.origin&&i.origin.unavailable?st('disputed','外部文件不可用'):''}</div>${n.kids.length?`<ul>${n.kids.map(k=>treeHtml(k,false)).join('')}</ul>`:''}</li>`;
+}
+function pageImpl(ip,g,v){
+  const i=I.find(x=>x.ip===ip&&x.g===g&&'v'+x.v===v); if(!i) return notFound();
+  const a=addr(i), p=prov(i), o=i.origin, chain=I.filter(x=>x.ip===ip&&x.g===g).sort((x,y)=>x.v-y.v), tree=expand(i), nodes=flat(tree);
+  const derived=I.filter(x=>x.based.includes(a)), users=I.filter(x=>x.uses&&Object.values(x.uses).some(u=>u.ref===a));
+  const sub=ip.replace(/-/g,'_'), files=i.type==='rtl'?[[sub+'.v',3120]]:i.type==='va'?[['model.scs',640],[sub+'__va.va',2210],[sub+'__va.rnl',900]]:i.type==='composition'?[[sub+'.scs',5210]]:[[sub+'.scs',i.type==='ideal'?1180:9840+hstr(a)%4000]];
+  const safe=nodes.every(n=>prov(n.i).pat==='waived');
+  const reqRows=i.uses?Object.entries(i.uses).flatMap(([inst,u])=>Object.entries(u.req||{}).map(([key,cond])=>({label:`<span class="mono">${inst}</span>`,ref:u.ref,key,cond}))):[];
+  const tbgs=uniq(T.filter(t=>t.ip===ip).map(t=>t.g));
+  const dataRows=tbgs.flatMap(tbg=>{const latest=T.filter(t=>t.ip===ip&&t.g===tbg).sort((x,y)=>y.v-x.v)[0];return latest.metrics.map(m=>({tbg,m,ms:metricState(a,tbg,m.id)}))});
+  return `<div class="crumb"><a href="#">IP 库</a><span>/</span><a href="${lIp(ip)}">${ip}</a><span>/</span><a href="${lIp(ip,'impls')}">实现</a><span>/</span><span>${g}/v${i.v}</span></div>
+  <div class="head"><div><div class="addr">${a}</div><p class="lede">${esc(i.sum)}</p>
+    <div class="row">${tBadge(i.type)}${i.proc?pBadge(i.proc):'<span class="pill">不涉及工艺</span>'}${patBadge(p.pat)}${i.suspect?st('disputed','疑似未声明来源'):''}${o&&o.unavailable?st('disputed','外部文件不可用'):''}</div>
+    <div class="row muted" style="font-size:13px"><span>${o?'登记者':'作者'} ${who(i)}</span><span>合并于 ${i.date}</span><span class="mono">${sha(a,7)}</span></div>
+    <div class="row">版本：${chain.map(x=>x.v===i.v?`<span class="pill mono" style="color:var(--ink);font-weight:600">v${x.v}</span>`:`<a class="pill mono" href="${lImpl(x)}">v${x.v}</a>`).join('')}${chain[chain.length-1].v!==i.v?'<span class="muted">这不是这个组的最新版本</span>':''}</div>
+  </div></div>
+  ${i.suspect?`<p class="note">CI 的相似度检查：这个实现和 ${aImpl(i.suspect.like)} 的网表结构有 ${i.suspect.sim}% 相同，但 <code>based_on</code> 是空的。这只是提示，不影响合并，由人来判断。</p>`:''}
+  <div class="cols"><div>
+   ${panel('网表','RNL 网表，可以直接在网页上看电路图',`<div class="viewer"><svg width="150" height="70" viewBox="0 0 150 70" aria-hidden="true"><g fill="none" stroke="var(--faint)" stroke-width="1.6"><path d="M20 35h22M42 22v26M48 18v34M48 24h20v-14M48 46h20v14M108 35h22M108 22v26M102 18v34M102 24h-20v-14M102 46h-20v14M68 60h14"/><circle cx="75" cy="10" r="3"/></g></svg>
+     <div>这里嵌入 RNL 查看器，显示 ${files[0][0]} 的电路图。<br>演示页面没有接入查看器。</div><a class="btn pri" href="#" data-ph="RNL 查看器">在 RNL 查看器中打开</a></div>
+     <table><thead><tr><th>文件</th><th class="r">大小</th><th>SHA-256</th></tr></thead><tbody>${files.map(f=>`<tr><td class="mono">${f[0]}</td><td class="r num">${(f[1]/1024).toFixed(1)} KB</td><td class="mono faint">${sha(a+f[0],16)}…</td></tr>`).join('')}</tbody></table>
+     ${o&&o.mode==='reference'?`<p class="note">这些文件不在平台里，网站按提交号从外部仓库取，并核对 SHA-256。</p>`:''}`)}
+   ${i.uses?panel('展开树','每个实例固定到一个具体版本；一次仿真里同一个 IP 只能有一个版本',`<ul class="tree">${treeHtml(tree)}</ul>
+     <p class="note">${safe?'展开树里的全部实现都已放弃专利，可以放心使用。':'展开树里有没有放弃专利的实现，使用前请看各自的许可证和专利信息。'}</p>`):''}
+   ${reqRows.length?panel('对子 IP 的要求','按 &lt;tb 组&gt;.&lt;指标&gt; 写；网站用固定版本的验证数据来核对',reqTable(reqRows),true):''}
+   ${panel('验证数据','取每个 tb 的第一个工况',dataRows.length?`<table><thead><tr><th>指标</th><th class="r">数值</th><th>状态</th><th>tb 版本</th><th>记录</th></tr></thead><tbody>${dataRows.map(d=>`<tr><td class="mono">${d.tbg}.${d.m.id}</td>
+      <td class="r num nw">${d.ms.state==='none'?'<span class="faint">—</span>':fmt(d.ms.value)+' '+d.m.unit}</td><td>${stateBadge(d.ms)}${d.ms.cross?' '+st('info','跨环境'):''}</td>
+      <td class="mono">${d.ms.tbv||'<span class="faint">—</span>'}</td><td>${d.ms.recs?d.ms.recs.map(r=>`<a class="mono" href="${lRec(r)}">@${r.account}</a>`).join(' '):'<span class="muted">还没有人跑过</span>'}</td></tr>`).join('')}</tbody></table>`:'<div class="body muted">这个 IP 还没有 tb。</div>',true)}
+   ${panel('这个版本上的验证记录','',recTable(R.filter(r=>r.dut===a)),true)}
+  </div><div>
+   ${panel('来路与许可证','',kv([['来路',o?esc(p.label):'在平台上提交'],o&&['外部路径',`<span class="mono">${esc(o.path)}</span>`],o&&['原作者',esc(o.authors)],
+     ['许可证',`<span class="mono">${esc(p.lic)}</span>`],['专利',patBadge(p.pat)+' '+({waived:o?'原许可证自带专利许可':'文件里写明 patents: waived',granted:'原许可证自带专利许可',notgranted:'原许可证没有专利条款，作者也没有声明',declared:''}[p.pat])],
+     Array.isArray(o&&o.patents)&&['已声明的专利',o.patents.map(x=>`${esc(x.id)}<br><span class="muted">${esc(x.holder)}：${esc(x.note)}</span>`).join('<br>')],
+     o&&o.unavailable&&['可用性','2026-11-03 起，从外部仓库和 jsDelivr 都取不到文件']]))}
+   ${panel('改进关系','',kv([['基于',i.based.length?i.based.map(aImpl).join('<br>'):i.v>1?aImpl(`${ip}@${g}/v${i.v-1}`)+' <span class="muted">（同组上一版）</span>':'<span class="muted">从零开始</span>'],
+     ['被改进为',derived.length?derived.map(x=>aImpl(addr(x))+` <span class="muted">@${x.account}</span>`).join('<br>'):'<span class="muted">还没有</span>'],
+     ['被组合引用',users.length?users.map(x=>aImpl(addr(x))).join('<br>'):'<span class="muted">还没有</span>']]))}
+   ${panel('署名','',`<pre style="white-space:pre-wrap">${esc(a)}，${i.author?esc(i.author)+'（@'+i.account+'）':'@'+i.account}，rnl-hub，${esc(p.lic)}
+https://rich-netlist.github.io/rnl-hub/…</pre><span class="faint" style="font-size:12.5px">使用这个实现时，保留这行声明即可。</span>`)}
+  </div></div>`;
+}
+function pageTb(ip,g,v){
+  const t=T.find(x=>x.ip===ip&&x.g===g&&'v'+x.v===v); if(!t) return notFound();
+  const vs=T.filter(x=>x.ip===ip&&x.g===g).sort((a,b)=>a.v-b.v), rs=R.filter(r=>r.ip===ip&&r.tbs.includes(`${g}/v${t.v}`)), py=t.sim!=='iverilog';
+  return `<div class="crumb"><a href="#">IP 库</a><span>/</span><a href="${lIp(ip)}">${ip}</a><span>/</span><a href="${lIp(ip,'tbs')}">tb</a><span>/</span><span>${g}/v${t.v}</span></div>
+  <div class="head"><div><div class="addr">${tbAddr(t)}</div><p class="lede">这个 tb 定义 ${t.metrics.length} 个指标：${t.metrics.map(m=>`<span class="mono">${g}.${m.id}</span>`).join('、')}</p>
+    <div class="row muted" style="font-size:13px"><span>作者 ${who(t)}</span><span>合并于 ${t.date}</span><span class="mono">CERN-OHL-P-2.0</span>${patBadge('waived')}</div>
+    <div class="row">版本：${vs.map(x=>x.v===t.v?`<span class="pill mono" style="color:var(--ink);font-weight:600">v${x.v}</span>`:`<a class="pill mono" href="${lTb(x)}">v${x.v}</a>`).join('')}${t.note?`<span class="muted">${esc(t.note)}</span>`:''}</div></div></div>
+  <div class="cols"><div>
+   ${panel('指标','同一个 tb 组里，指标名的含义不变',`<table><thead><tr><th>指标</th><th>单位</th><th>方向</th><th>复现容差</th><th>怎么测</th></tr></thead><tbody>${t.metrics.map(m=>`<tr><td class="mono nw">${g}.${m.id}</td><td class="nw">${m.unit}</td><td class="nw">${BETTER[m.better]}</td><td class="num nw">${tolText(m)}</td><td>${esc(m.desc)}</td></tr>`).join('')}</tbody></table>`,true)}
+   ${panel('工况','角名是通用的，验证时在本地对应到具体工艺',`<table><thead><tr><th>工况</th><th>工艺角</th><th class="r">温度 (°C)</th><th class="r">电源系数</th></tr></thead><tbody>${Object.entries(t.cases).map(([k,c])=>`<tr><td class="mono">${k}</td><td class="mono">${c.corner}</td><td class="r num">${c.temp}</td><td class="r num">${c.supply}</td></tr>`).join('')}</tbody></table>`,true)}
+   ${panel('怎么跑','仿真命令和分析代码都由 tb 自带',`<h3>仿真命令（写给 ${t.sim}）</h3><pre>${esc(t.run)}</pre><h3>分析代码</h3><pre>${py?`# analyze.py &lt;仿真结果目录&gt; &lt;输出目录&gt;
+import json, sys
+from pathlib import Path
+import numpy as np
+
+def main(raw_dir, out_dir):
+    data = load_results(Path(raw_dir))          # 读仿真结果
+    metrics = {case: measure(d) for case, d in data.items()}
+    Path(out_dir, "metrics.json").write_text(json.dumps(metrics))
+    write_evidence(Path(out_dir, "evidence"), data)   # 画图用的数据
+
+if __name__ == "__main__":
+    main(*sys.argv[1:3])`:`# analyze.py &lt;仿真结果目录&gt; &lt;输出目录&gt;
+# 读 vvp 的输出，统计出错的码数，写 metrics.json`}</pre>
+     <p class="note">CI 不运行这些代码。验证者第一次运行某个 tb 版本前，hubflow 会先显示代码以及它和上一版的差异；代码在单独的进程和临时目录里运行，默认不联网。</p>`)}
+   ${panel('用这个版本跑出的验证记录',`${rs.length} 条`,recTable(rs),true)}
+  </div><div>
+   ${panel('文件','',`<table><tbody>${[['tb.yaml','指标、工况、命令'],[t.sim==='iverilog'?'tb.v':t.sim==='ngspice'?'tb.cir':'tb.scs','仿真网表'],['analyze.py','分析代码'],['requirements.txt','Python 依赖'],['README.md','声明和说明']].map(f=>`<tr><td class="mono">${f[0]}</td><td class="muted">${f[1]}</td></tr>`).join('')}</tbody></table>`,true)}
+  </div></div>`;
+}
+function pageRec(ip,id){
+  const r=R.find(x=>x.ip===ip&&x.id===id); if(!r) return notFound();
+  const dut=implAt(r.dut), e=ENV[r.env], over={}; if(r.override)Object.assign(over,r.override);
+  const tree=expand(dut,'',over), nodes=flat(tree), ev=evidence(r), caseNames=Object.keys(r.cases);
+  const repro=r.tbs.map(tv=>{const tbg=tv.split('/')[0], tb=tbAt(ip,tv), grp=groupsFor(r.dut,tbg).find(g=>g.tbv===tv&&g.lock===r.lock), cs=Object.keys(tb.cases)[0];
+    const rows=grp.recs.filter(x=>x.cases[cs]), first=rows[0];
+    return panel(`<span class="mono">${tv}</span> 的复现`,`同一个实现、同一个 tb 版本、同一个 lock 的记录共 ${rows.length} 条 · 工况 ${cs}`,
+     `<table><thead><tr><th>记录</th><th>账号</th><th>环境</th>${tb.metrics.map(m=>`<th class="r">${m.id} <span class="faint">${m.unit}</span></th>`).join('')}</tr></thead><tbody>${rows.map(x=>`<tr${x===r?' style="background:var(--accent-soft)"':''}>
+       <td class="nw">${x===r?'<b class="mono">本记录</b>':`<a class="mono" href="${lRec(x)}">${x.id}</a>`}</td><td class="nw">@${x.account}</td><td class="nw">${ENV[x.env].sim} ${ENV[x.env].ver}${envKey(x)!==envKey(first)?' '+st('info','跨环境'):''}</td>
+       ${tb.metrics.map(m=>{const k=tbg+'.'+m.id, val=x.cases[cs][k], ref=first.cases[cs][k]; if(val==null) return '<td class="r faint">—</td>';
+         const d=val-ref, ok=Math.abs(d)<=tolOf(m,ref)+1e-12; return `<td class="r nw"><span class="num">${fmt(val)}</span>${x===first?'':` <span class="num" style="color:var(--${ok?'ok':'bad'})">${d>=0?'+':'−'}${fmt(Math.abs(d))} ${ok?'✓':'✗'}</span>`}</td>`}).join('')}</tr>`).join('')}
+       <tr><td colspan="3" class="muted">复现容差（相对最早的一条记录）</td>${tb.metrics.map(m=>`<td class="r num muted nw">${tolText(m)}</td>`).join('')}</tr></tbody></table>`,true)}).join('');
+  const all=r.tbs.flatMap(tv=>{const tbg=tv.split('/')[0];return tbAt(ip,tv).metrics.map(m=>({k:tbg+'.'+m.id,m,tbg}))});
+  return `<div class="crumb"><a href="#">IP 库</a><span>/</span><a href="${lIp(ip)}">${ip}</a><span>/</span><a href="${lIp(ip,'data')}">验证数据</a><span>/</span><span>${id}</span></div>
+  <div class="head"><div><div class="addr">${ip}!${id}</div>
+    <div class="row muted" style="font-size:13px"><span>提交者 ${who(r)}</span><span>${r.date} ${r.time} UTC</span><span>许可证 MIT</span></div>
+    ${kv([['被测实现',aImpl(r.dut)+' '+tBadge(dut.type)+(dut.proc?' '+pBadge(dut.proc):'')],['跑的 tb',r.tbs.map(tv=>`<a class="mono" href="${lTb(tbAt(ip,tv))}">${ip}:${tv}</a>`).join('、')],
+      r.override&&['替换的实例',Object.entries(r.override).map(([k,v2])=>`<span class="mono">${k}</span> → ${aImpl(v2)}`).join('<br>')+' <span class="muted">（lock 不同，不算原组合的复现）</span>'],
+      r.note&&['说明',esc(r.note)]])}</div></div>
+  <div class="cols"><div>
+   ${panel('数值','每个工况、每个指标一个数，由 tb 的分析代码算出',`<table><thead><tr><th>指标</th>${caseNames.map(c=>`<th class="r mono">${c}</th>`).join('')}</tr></thead><tbody>${all.map(x=>`<tr><td class="mono nw">${x.k} <span class="faint">${x.m.unit}</span></td>${caseNames.map(c=>`<td class="r num">${r.cases[c][x.k]!=null?fmt(r.cases[c][x.k]):'<span class="faint">—</span>'}</td>`).join('')}</tr>`).join('')}</tbody></table>`,true)}
+   ${repro}
+   ${ev?panel('关键证据','只放画图用的数据，不放原始波形；图由网站画',chart(ev)):''}
+  </div><div>
+   ${panel('环境声明','每条记录都要写明',kv([['仿真器',`${e.sim} ${e.ver}`],['设置',`<span class="mono">${esc(e.opt)}</span>`],r.pdk&&['PDK',`${dut.proc||nodes.map(n=>n.i.proc).find(Boolean)||''} · ${esc(r.pdk)}`],
+     e.sim!=='iverilog'&&['分析环境','Python 3.11.6<br><span class="mono muted">numpy 1.26.4, scipy 1.11.4</span>'],['系统',`${e.os}<br><span class="muted">${e.cpu}</span>`]]))}
+   ${panel('lock','实际用到的每个文件和它的哈希',`<dl class="kv"><dt>digest</dt><dd class="mono">${r.lock}…</dd></dl>
+     <ul class="tree">${treeHtml(tree)}</ul>
+     <table><tbody>${r.tbs.map(tv=>`<tr><td class="mono">${tv}</td><td class="mono faint">tb ${sha(tv+'tb',8)}… · analyze.py ${sha(tv+'py',8)}…</td></tr>`).join('')}</tbody></table>
+     <span class="faint" style="font-size:12.5px">CI 按地址重算 lock，和提交的不一致就拒绝合并。</span>`)}
+  </div></div>`;
+}
+function pageBoard(){
+  const groups=[];I.forEach(i=>uniq(T.filter(t=>t.ip===i.ip).map(t=>t.g)).forEach(tbg=>{const g=groupsFor(addr(i),tbg)[0];if(!g)return;
+    const tb=tbAt(i.ip,g.tbv), sts=tb.metrics.map(m=>metricState(addr(i),tbg,m.id)), state=sts.some(s=>s.state==='disputed')?'disputed':sts.some(s=>s.state==='self')?'self':'verified';
+    groups.push({i,tbg,g,state,sts})}));
+  const latest=new Set(IPS.flatMap(p=>latestOfGroup(p.id)).map(addr));
+  const disputed=groups.filter(x=>x.state==='disputed'), self=groups.filter(x=>x.state==='self'&&latest.has(addr(x.i)));
+  const norec=I.filter(i=>latest.has(addr(i))&&!R.some(r=>r.dut===addr(i)));
+  const risk=I.filter(i=>i.uses).flatMap(c=>Object.entries(c.uses).flatMap(([inst,u])=>Object.entries(u.req||{}).map(([key,cond])=>({label:`${aImpl(addr(c))} · <span class="mono">${inst}</span>`,ref:u.ref,key,cond,ck:reqCheck(u.ref,key,cond)})))).filter(x=>x.ck.res!=='ok');
+  const gt=xs=>`<table><thead><tr><th>实现</th><th>tb 版本</th><th>记录</th><th>数值</th></tr></thead><tbody>${xs.map(x=>`<tr><td class="nw">${aImpl(addr(x.i))}</td><td class="mono nw">${x.g.tbv}</td><td>${x.g.recs.map(r=>`<a class="mono" href="${lRec(r)}">@${r.account}</a>`).join(' ')}</td>
+    <td>${x.sts.filter(s=>s.state!=='none').map(s=>`<span class="mono">${s.m.id}</span> <span class="num">${s.vals.map(fmt).join(' / ')}</span> ${s.m.unit}`).join('；')}</td></tr>`).join('')}</tbody></table>`;
+  return `<div class="stack" style="gap:8px"><h1>看板</h1><p class="lede">这里列出需要有人处理的事。想参与，最直接的办法是挑一条"等待复现"的记录，在自己的环境里跑一遍。</p></div>
+   ${panel('有争议',`${disputed.length} 组 · 不同账号的数值超出了 tb 规定的容差`,disputed.length?gt(disputed):'<div class="body muted">没有。</div>',true)}
+   ${panel('等待复现',`${self.length} 组 · 只有一个账号跑过`,gt(self),true)}
+   ${panel('要求没有兑现的组合',`${risk.length} 条 · 不满足、有争议，或者还没有数据`,reqTable(risk),true)}
+   <div class="two">
+   ${panel('没有任何验证记录的实现',`${norec.length} 个`,`<table><tbody>${norec.map(i=>`<tr><td class="nw">${aImpl(addr(i))}</td><td>${tBadge(i.type)}</td><td class="nw">${who(i)}</td></tr>`).join('')}</tbody></table>`,true)}
+   <div class="stack">
+   ${panel('疑似未声明来源','CI 的相似度检查标出，由人判断',`<table><tbody>${I.filter(i=>i.suspect).map(i=>`<tr><td>${aImpl(addr(i))}</td><td>和 ${aImpl(i.suspect.like)} 有 ${i.suspect.sim}% 相同</td></tr>`).join('')}</tbody></table>`,true)}
+   ${panel('外部文件不可用','每天检查一次引用的外部文件',`<table><tbody>${I.filter(i=>i.origin&&i.origin.unavailable).map(i=>`<tr><td>${aImpl(addr(i))}</td><td class="mono muted">${i.origin.repo}@${i.origin.sha}</td></tr>`).join('')}</tbody></table>`,true)}
+   </div></div>`;
+}
+function pageUser(acc){
+  const im=I.filter(i=>i.account===acc), tb=T.filter(t=>t.account===acc), rs=R.filter(r=>r.account===acc), defs=IPS.filter(p=>p.account===acc);
+  if(!im.length&&!tb.length&&!rs.length&&!defs.length) return notFound();
+  const names=uniq([...im,...tb,...rs,...defs].map(o=>o.author).filter(Boolean));
+  const others=rs.filter(r=>implAt(r.dut).account!==acc).length;
+  return `<div class="crumb"><a href="#">IP 库</a><span>/</span><span>账号</span></div>
+   <div class="stack" style="gap:10px"><div class="addr">@${esc(acc)}</div>
+    <p class="lede">${names.length?'用过的署名：'+names.map(esc).join('、'):'没有署名'}。账号取自 PR 的作者，署名是提交者自己写的。</p>
+    <div class="stats"><div><b>${defs.length}</b><span>IP 定义</span></div><div><b>${im.length}</b><span>实现版本</span></div><div><b>${tb.length}</b><span>tb 版本</span></div><div><b>${rs.length}</b><span>验证记录</span></div><div><b>${others}</b><span>其中验证别人的实现</span></div></div></div>
+   ${im.length?panel('实现','',implTable(im.slice().sort((a,b)=>byDate(b,a))),true):''}
+   ${tb.length?panel('tb','',`<table><thead><tr><th>地址</th><th>指标</th><th>日期</th></tr></thead><tbody>${tb.map(t=>`<tr><td><a class="mono" href="${lTb(t)}">${tbAddr(t)}</a></td><td class="mono muted">${t.metrics.map(m=>m.id).join('、')}</td><td class="num muted nw">${t.date}</td></tr>`).join('')}</tbody></table>`,true):''}
+   ${rs.length?panel('验证记录','',recTable(rs),true):''}`;
+}
+function pageContribute(){
+  return `<div class="stack" style="gap:8px"><h1>贡献须知</h1><p class="lede">所有贡献都通过 GitHub 的 PR 提交。CI 只检查格式和规则，不替任何人验证数据。</p></div>
+  <div class="alert"><h2>你向平台提交的全部内容，都放弃专利权</h2>
+   <ul><li>实现和 tb 按 CERN-OHL-P-2.0 授权。按它的第 6.1 条，你向所有人授予免费、永久、不可撤销的专利许可。</li>
+   <li>定义、目标值、验证记录和笔记按 MIT 授权，你另外对这些内容授予同样的专利许可。</li>
+   <li>想保留专利的设计，<b>不要提交收录</b>。把它放在自己的仓库里，作为外部实现引用，并写明专利信息。</li>
+   <li>设计如果属于职务发明或归单位所有，先取得单位的书面同意。</li>
+   <li>平台不做专利检索，不保证收录的设计不侵犯第三方的专利。</li></ul></div>
+  <div class="two">
+   ${panel('可以贡献什么','一个 PR 只涉及一个 IP',`<table><tbody>
+     <tr><td class="nw"><b>IP 定义</b></td><td>名字、描述和端口。可以单独提交，也可以和第一个实现、tb 一起提交。</td></tr>
+     <tr><td class="nw"><b>实现</b></td><td>理想模型、VA、RTL、晶体管级，或者由别的 IP 搭成的组合。引用别的 IP 时固定到具体版本。</td></tr>
+     <tr><td class="nw"><b>tb</b></td><td>仿真网表、仿真命令和分析代码，并定义一组指标。谁都可以写。</td></tr>
+     <tr><td class="nw"><b>验证记录</b></td><td>在自己的环境里跑 tb，提交数值、环境声明和关键证据。复现别人的结果同样是贡献。</td></tr>
+     <tr><td class="nw"><b>外部实现</b></td><td>登记 GitHub 公开仓库里符合格式的实现。CERN-OHL-P-2.0 的自动收录，其他许可证的只引用。</td></tr></tbody></table>`,true)}
+   ${panel('许可证','全平台只有两种',`<table><thead><tr><th>内容</th><th>许可证</th></tr></thead><tbody>
+     <tr><td>实现、tb</td><td class="mono">CERN-OHL-P-2.0</td></tr><tr><td>定义、目标值、验证记录、证据、笔记、工具</td><td class="mono">MIT</td></tr><tr><td>只引用的外部实现</td><td>原仓库的许可证，文件不在平台里</td></tr></tbody></table>`,true)}
+  </div>
+  ${panel('流程','从 fork 到出现在网站上',`<pre>fork 仓库，克隆到本地
+hubflow new impl strongarm-comp --group my-design     生成目录和 impl.yaml
+（在自己的环境里设计、仿真）
+hubflow run strongarm-comp:tb_offset/v2 --dut strongarm-comp@my-design/v1
+                                                      装配、仿真、分析，生成验证记录和 lock
+hubflow check                                         在本地跑 CI 的全部检查
+git push，开 PR                                        账号取自 PR；署名写在文件的 author 里，可以不写
+CI 检查通过                                            机器人打标签，放进合并队列
+合并                                                  网站最迟在下一次构建时更新，两次构建至少隔 30 分钟</pre>
+   <div class="plain"><ul><li>合并后的内容不能修改，只能出新版本。</li><li>改进别人的实现时另开一个实现组，并在 <code>based_on</code> 里写明基于哪个版本。</li><li>署名是自由文本，真人和 agent 都可以署名，例如 <code>r08(fable51)</code>；不想公开模型可以不写。</li></ul></div>`)}`;
+}
+const notFound=()=>`<div class="stack" style="gap:8px"><h1>找不到这个页面</h1><p class="lede">地址可能写错了。<a href="#">回到 IP 库</a></p></div>`;
+
+/* ---------- router ---------- */
+let cur=decodeURIComponent(location.hash.slice(1));
+function route(){
+  const parts=cur.split('--').map(s=>s.replace(/-u-/g,'_')), [k,a,b,c]=parts;
+  let html, nav='lib';
+  if(!k) html=pageHome();
+  else if(k==='ip') html=pageIp(a,b);
+  else if(k==='impl') html=pageImpl(a,b,c);
+  else if(k==='tb') html=pageTb(a,b,c);
+  else if(k==='rec') html=pageRec(a,b);
+  else if(k==='board'){html=pageBoard();nav='board'}
+  else if(k==='user') html=pageUser(a);
+  else if(k==='contribute'){html=pageContribute();nav='contribute'}
+  else html=notFound();
+  document.getElementById('app').innerHTML=html;
+  document.getElementById('nav').innerHTML=[['lib','#','IP 库'],['board','#board','看板'],['contribute','#contribute','贡献须知']].map(n=>`<a class="${nav===n[0]?'on':''}" href="${n[1]}">${n[2]}</a>`).join('');
+  if(!k){const upd=()=>{document.getElementById('lib-rows').innerHTML=libRows()};
+    document.getElementById('lib-q').addEventListener('input',e=>{LIB.q=e.target.value;upd()});
+    document.getElementById('lib-type').addEventListener('change',e=>{LIB.type=e.target.value;upd()});
+    document.getElementById('lib-proc').addEventListener('change',e=>{LIB.proc=e.target.value;upd()});
+    document.getElementById('lib-ver').addEventListener('change',e=>{LIB.ver=e.target.checked;upd()});}
+  window.scrollTo(0,0);
+}
+// The hash is used where the host allows it; clicks always work through `cur`, so the page also runs from a data: URL.
+function go(h){cur=h;if(location.protocol!=='data:'&&location.hash.slice(1)!==h){location.hash=h;return}route()}
+let toastTimer;
+document.addEventListener('click',e=>{
+  const a=e.target.closest&&e.target.closest('a[href^="#"]'); if(!a||e.metaKey||e.ctrlKey||e.shiftKey)return;
+  e.preventDefault();
+  if(a.dataset.ph){const t=document.getElementById('toast');t.textContent='演示页面：正式网站上，这里会打开'+a.dataset.ph+'。';t.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>{t.hidden=true},2600);return}
+  go(a.getAttribute('href').slice(1));
+});
+window.addEventListener('hashchange',()=>{cur=decodeURIComponent(location.hash.slice(1));route()});
+route();
+
+/* ---------- theme toggle ---------- */
+const root=document.documentElement, themeBtn=document.getElementById('theme-btn'), darkMq=window.matchMedia('(prefers-color-scheme: dark)');
+const isDark=()=>root.dataset.theme?root.dataset.theme==='dark':darkMq.matches;
+const SUN='<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3" fill="currentColor"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.5 1.5M11.5 11.5L13 13M3 13l1.5-1.5M11.5 4.5L13 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>';
+const MOON='<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.8A6 6 0 0 1 6.2 2.5a6 6 0 1 0 7.3 7.3z" fill="currentColor"/></svg>';
+function paintTheme(){const d=isDark();themeBtn.innerHTML=(d?SUN:MOON)+(d?'浅色':'深色');themeBtn.setAttribute('aria-label',d?'切换到浅色背景':'切换到深色背景')}
+try{const t=localStorage.getItem('rnl-hub-theme');if(t==='dark'||t==='light')root.dataset.theme=t}catch(e){}
+themeBtn.addEventListener('click',()=>{const t=isDark()?'light':'dark';root.dataset.theme=t;try{localStorage.setItem('rnl-hub-theme',t)}catch(e){}paintTheme()});
+darkMq.addEventListener('change',paintTheme);
+new MutationObserver(paintTheme).observe(root,{attributes:true,attributeFilter:['data-theme']});
+paintTheme();
+</script>

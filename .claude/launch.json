@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "site-demo",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "47931", "--directory", "demo/site"],
+      "port": 47931
+    }
+  ]
+}
